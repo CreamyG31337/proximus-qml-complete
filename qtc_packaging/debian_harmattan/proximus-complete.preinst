@@ -1,0 +1,3 @@
+#! /bin/sh
+stop apps/proximus-daemon
+exit 0

@@ -1,0 +1,23 @@
+Format: 1.8
+Date: Wed, 28 Dec 2011 02:27:40 -0800
+Source: proximus-complete
+Binary: proximus-complete
+Architecture: armel
+Version: 1.0.0
+Distribution: unstable
+Urgency: low
+Maintainer: unknown <>
+Changed-By: unknown <>
+Description: 
+ proximus-complete - <insert up to 60 chars description>
+Changes: 
+ proximus-complete (1.0.0) unstable; urgency=low
+ .
+   * <Add change description here>
+Checksums-Sha1: 
+ 425b803e18ea51d66220a9bacc1e7839d10ea4bc 260168 proximus-complete_1.0.0_armel.deb
+Checksums-Sha256: 
+ 56d16e63377d75e5b34a10bd5682d97a3d669f492b6723d5ae169992ebba44b3 260168 proximus-complete_1.0.0_armel.deb
+Files: 
+ 1e70a734e99d11b1f6b5ffaa1af4c7d6 260168 user/other optional proximus-complete_1.0.0_armel.deb
+Maemo-Display-Name: Proximus-complete
