@@ -372,7 +372,7 @@ Page{
                 var _minutes = 0
                 if (btnTime1.text != "?"){
                     var time = btnTime1.text.match(/(\d\d):(\d\d)/);
-                    _hours = (time[1]); // parseint doesn't like eights and nines??
+                    _hours = (time[1]); // parseint doesn't like eights and nines?? the hell?
                     _minutes = (time[2]);
                 }
                 appWindow.pageStack.push(Qt.resolvedUrl("TimePicker.qml"),

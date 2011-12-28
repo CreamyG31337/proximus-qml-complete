@@ -6,18 +6,18 @@ Architecture: armel
 Version: 1.0.0
 Distribution: unstable
 Urgency: low
-Maintainer: unknown <>
+Maintainer: lance.colton@gmail.com
 Changed-By: unknown <>
 Description: 
- proximus-complete - <insert up to 60 chars description>
+ proximus-complete - Switch profiles based on rules you define
 Changes: 
  proximus-complete (1.0.0) unstable; urgency=low
  .
    * <Add change description here>
 Checksums-Sha1: 
- 425b803e18ea51d66220a9bacc1e7839d10ea4bc 260168 proximus-complete_1.0.0_armel.deb
+ 75aa209e03508f78a65e197d260a4a9dbc4b2e23 260218 proximus-complete_1.0.0_armel.deb
 Checksums-Sha256: 
- 56d16e63377d75e5b34a10bd5682d97a3d669f492b6723d5ae169992ebba44b3 260168 proximus-complete_1.0.0_armel.deb
+ c3e595abc7f7e479869e6d76d9649090c38cb5dd706e1df50b8c2dc39dd82de4 260218 proximus-complete_1.0.0_armel.deb
 Files: 
- 1e70a734e99d11b1f6b5ffaa1af4c7d6 260168 user/other optional proximus-complete_1.0.0_armel.deb
-Maemo-Display-Name: Proximus-complete
+ 84468427c1e9b8952cd9b517c237f7eb 260218 user/other optional proximus-complete_1.0.0_armel.deb
+Maemo-Display-Name: Proximus
