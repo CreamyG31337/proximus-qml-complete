@@ -1,6 +1,6 @@
 import QtQuick 1.1
 import com.nokia.meego 1.0
-import com.nokia.extras 1.1
+import com.nokia.extras 1.0
 
 Page{
     //tools: commonTools
@@ -372,7 +372,7 @@ Page{
                 var _minutes = 0
                 if (btnTime1.text != "?"){
                     var time = btnTime1.text.match(/(\d\d):(\d\d)/);
-                    _hours = (time[1]); // parseint doesn't like eights and nines??
+                    _hours = (time[1]); // parseint doesn't like eights and nines?? the hell?
                     _minutes = (time[2]);
                 }
                 appWindow.pageStack.push(Qt.resolvedUrl("TimePicker.qml"),
@@ -465,6 +465,8 @@ Page{
                 {
                     objQSettings.remove("/rules/" + ruleName)
                     console.log("replacing " + ruleName + " with " + txtRuleName.text)
+                    //deselect rule on List
+
                 }
 
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Actions/Profile/enabled",swChangeProfile.checked);

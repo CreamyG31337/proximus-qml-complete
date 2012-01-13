@@ -109,6 +109,10 @@ void Controller::rulesStorageChanged() {
                     startTimeDiff = 86400 + startTimeDiff;// if was negative, that's not useful. we take the # seconds in a day (86,400) and subtract the # of seconds ago the event started to get the # of seconds when it starts next.
                 if (endTimeDiff < 1)
                     endTimeDiff = 86400 + endTimeDiff;//same thing here
+                //connect signal to rule
+                connect(&newRule->data.timeRule, SIGNAL(activeChanged(Rule*)),
+                        this, SLOT(checkStatus(Rule*))
+                );
                 newRule->data.timeRule.deactivateTimer.start(endTimeDiff * 1000);
                 newRule->data.timeRule.deactivateTimer.setSingleShot(true);
                 //ui->txtLog->appendPlainText("timer to deactivate rule set for " + QString::number(endTimeDiff) + "s");

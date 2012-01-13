@@ -1,0 +1,23 @@
+Format: 1.8
+Date: Thu, 12 Jan 2012 21:21:28 -0700
+Source: proximus-complete
+Binary: proximus-complete
+Architecture: armel
+Version: 1.0.1
+Distribution: unstable
+Urgency: low
+Maintainer: lance.colton@gmail.com
+Changed-By: lance colton <lance.colton@gmail.com>
+Description: 
+ proximus-complete - Switch profiles based on rules you define
+Changes: 
+ proximus-complete (1.0.1) unstable; urgency=low
+ .
+   * Fix bug causing time rule activation not to do anything
+Checksums-Sha1: 
+ f64e737a5b48d9bec1bfc8800b74567fe6951819 260302 proximus-complete_1.0.1_armel.deb
+Checksums-Sha256: 
+ 779fdb0a5e252afcd21ee0eb05d0202b74b4e3b238b0271b14a75e8ccfc2312a 260302 proximus-complete_1.0.1_armel.deb
+Files: 
+ a1c0b3f1afa0474421d2068a7c5f0762 260302 user/other optional proximus-complete_1.0.1_armel.deb
+Maemo-Display-Name: Proximus
