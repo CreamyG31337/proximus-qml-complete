@@ -49,7 +49,7 @@ Page{
 
     Flickable{
     anchors.fill: parent
-    contentHeight: 600
+    contentHeight: 800
         TextField{
             anchors.top: parent.top
             anchors.horizontalCenter: parent.horizontalCenter
@@ -405,6 +405,61 @@ Page{
             }
             enabled: swUseTime.checked
         }
+
+        /////////////////////NEAR WIFI
+
+
+        Switch{
+            id: swUseWIFI
+            anchors.top: btnTime1.bottom
+            anchors.left: parent.left
+            anchors.margins: 5
+            checked: objQSettings.getValue("/rules/" + ruleName + "/WiFi/enabled",true)
+        }
+        Label{
+            anchors.top: btnTime1.bottom
+            anchors.left: swUseWIFI.right
+            height: swUseWIFI.height
+            verticalAlignment: Text.AlignVCenter
+            text: "Near any of these WiFi"
+            color: "black"
+        }
+        Label{
+            anchors.top: btnTime1.bottom
+            anchors.right: swUseWIFINot.left
+            height: swUseTimeNot.height
+            verticalAlignment: Text.AlignVCenter
+            horizontalAlignment: Text.AlignRight
+            text: "NOT"
+            font.pixelSize: 24
+            color: "black"
+
+        }
+        Switch{
+            id: swUseWIFINot
+            anchors.top: btnTime1.bottom
+            anchors.right: parent.right
+            anchors.margins: 5
+            checked: objQSettings.getValue("/rules/" + ruleName + "/WiFi/NOT",false)
+            enabled: swUseWIFI.checked
+        }
+
+        TextField{
+            id: txtWiFiNetworks
+            width: parent.width - 20
+            height: 45
+            anchors.top: swUseWIFI.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: objQSettings.getValue("/rules/" + ruleName + "/WiFi/SSIDs","")
+            placeholderText: "enter SSIDs seperated by spaces"
+            font.pixelSize: 26
+            validator: RegExpValidator{regExp: /(\w+ *)+/}
+            maximumLength: 255
+            enabled: swUseWIFI.checked
+        }
+
+
+
         //////////////////////////SAVE  OR CANCEL
 
         Button{
@@ -492,6 +547,13 @@ Page{
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Calendar/NOT",swUseCalendarNOT.checked);
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Calendar/KEYWORDS",txtCalendarKeywords.text);
                 }
+
+                objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/enabled",swUseWIFI.checked);
+                if (swUseWIFI.checked){
+                objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/NOT",swUseWIFINot.checked);
+                objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/SSIDs",txtWiFiNetworks.text);
+                }
+
                 objProximusUtils.refreshRulesModel(); //why can't i call the function in settingsPage now??
                 appWindow.pageStack.pop()
             }

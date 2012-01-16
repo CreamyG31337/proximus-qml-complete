@@ -32,6 +32,8 @@ MOBILITY += systeminfo
 #calendar
 MOBILITY += organizer
 
+INCLUDEPATH += /usr/include/
+
 # Please do not modify the following two lines. Required for deployment.
 include(deployment.pri)
 qtcAddDeployment()

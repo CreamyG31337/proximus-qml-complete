@@ -1,3 +1,10 @@
+proximus-complete (1.1.0) unstable; urgency=low
+  * added support for wifi network scanning and rules
+  * also added option to disable other positioning completely
+    - this should fix increased battery usage
+
+ -- lance colton <lance.colton@gmail.com>  Sun, 15 Jan 2012 22:28:37 -0700
+
 proximus-complete (1.0.1) unstable; urgency=low
   * Fix bug causing time rule activation not to do anything
 

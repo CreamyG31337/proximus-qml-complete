@@ -15,9 +15,9 @@ Changes:
  .
    * Fix bug causing time rule activation not to do anything
 Checksums-Sha1: 
- f64e737a5b48d9bec1bfc8800b74567fe6951819 260302 proximus-complete_1.0.1_armel.deb
+ 5b767acb496199ff35ff19c9886ae1568b605a4f 268532 proximus-complete_1.0.1_armel.deb
 Checksums-Sha256: 
- 779fdb0a5e252afcd21ee0eb05d0202b74b4e3b238b0271b14a75e8ccfc2312a 260302 proximus-complete_1.0.1_armel.deb
+ 1128c5c23c39cb8e4a61b6e40c5e5e4afb9f5df5ef79dc53c4f3e7eb1729a1d8 268532 proximus-complete_1.0.1_armel.deb
 Files: 
- a1c0b3f1afa0474421d2068a7c5f0762 260302 user/other optional proximus-complete_1.0.1_armel.deb
+ 80bb70dca7cb9c54e5cd948084833350 268532 user/other optional proximus-complete_1.0.1_armel.deb
 Maemo-Display-Name: Proximus

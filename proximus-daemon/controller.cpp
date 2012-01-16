@@ -1,14 +1,17 @@
 #include "controller.h"
 #include "profileclient.h"
+#include "wlancond-dbus.h"
+#include "wlancond.h"
 
 Controller::Controller(QObject *parent) :
     QObject(parent), settings(new QSettings("/home/user/.config/FakeCompany/Proximus.conf",QSettings::NativeFormat,this))
     ,fswatcher(new QFileSystemWatcher(this))
     ,calTimer(new QSystemAlignedTimer(this))
-
+    ,wifiTimer(new QSystemAlignedTimer(this))
 
 {//important to init qsettings like that so it doesn't store in /home/root/ or whatever other account name
     qDebug() << "starting proximus";
+    pendingScan = false;
     fswatcher->addPath("/home/user/.config/FakeCompany/Proximus.conf");
     connect(fswatcher, SIGNAL(fileChanged(QString)),
             this, SLOT(rulesStorageChanged()));//don't need the filename passed
@@ -28,11 +31,78 @@ Controller::Controller(QObject *parent) :
            // QSystemAlignedTimer *newTimer = new QSystemAlignedTimer(this);
             connect (calTimer, SIGNAL(timeout()),this,SLOT(updateCalendar()));
             calTimer->start(60*45,60*60); //timer should fire every 45-60 min
+            connect (wifiTimer, SIGNAL(timeout()),this,SLOT(requestScan()));//don't start yet
         #endif
     #endif
 
+    QDBusConnection::systemBus().connect(WLANCOND_SERVICE, WLANCOND_SIG_PATH,
+                                         WLANCOND_SIG_INTERFACE, WLANCOND_SCAN_RESULTS_SIG,
+                                         this, SLOT(recvScan(const QDBusMessage&)));
+
+    connect(&waitAndReScanTimer, SIGNAL(timeout()),
+            this, SLOT(requestScan()));
+
     qDebug() << "init complete";
 }
+
+void Controller::recvScan(const QDBusMessage &msg)
+{//i'd never have figured this out without http://b.zekjur.net/post/27
+    nearbySSIDs.clear();
+    QList<QVariant> args = msg.arguments();
+    int networks = args.value(0).value<int>();
+    for (int c = 0; c < networks; c++) {
+        int pos = 1 + (c * 5);
+        nearbySSIDs.append(args.value(pos).value<QByteArray>());
+    }
+    qDebug() << nearbySSIDs;
+    //check all rules now
+    bool match;
+    pendingScan = false;
+    foreach(Rule* ruleStruct,  Rules) {
+        match = false;
+        if(ruleStruct->enabled && ruleStruct->data.wifiRule.enabled)
+        {
+            QStringList RuleSSIDs = ruleStruct->data.wifiRule.SSIDs.split(" ");
+            foreach(QString SSIDfromScan, nearbySSIDs)
+            {
+                foreach(QString ruleSSID,RuleSSIDs)
+                {
+                    if(ruleSSID.toUpper() == SSIDfromScan.toUpper())
+                    {
+                        match = true;
+                        break;
+                    }
+                }
+                if (match)
+                    break;
+            }
+        }
+        if(match)
+            ruleStruct->data.wifiRule.activated();
+        else
+            ruleStruct->data.wifiRule.deactivated();
+    }
+}
+
+void Controller::requestScan()
+{
+    pendingScan = true;
+    QDBusInterface remoteApp(WLANCOND_SERVICE, WLANCOND_REQ_PATH,
+                              WLANCOND_REQ_INTERFACE , QDBusConnection::systemBus());
+
+    QDBusMessage reply = remoteApp.call(WLANCOND_SCAN_REQ, WLANCOND_TX_POWER10, QByteArray (""), 0);
+    if (reply.type() == QDBusMessage::ErrorMessage){
+        if  (reply.errorMessage() == "com.nokia.wlancond.error.already_active"){
+            //wait and rescan
+            qDebug() << "stupid thing is busy";
+            waitAndReScanTimer.start(7,13);
+            waitAndReScanTimer.setSingleShot(true);
+        }
+        else
+            qDebug() << reply.errorMessage(); //likes to get "com.nokia.wlancond.error.already_active" , and then not do a scan...
+    }
+}
+
 
 Controller::~Controller()
 {
@@ -50,8 +120,22 @@ void Controller::rulesStorageChanged() {
         qDebug() << "service supposed to be disabled, exiting";
         exit(0);
     }
-//    qDebug() << "current group is " << settings->group();
-    startGPS();//since settings could have changed, restart GPS to set the correct positioning method
+
+    if (settings->value("/settings/Positioning/enabled",false).toBool()){
+        qDebug() << "positioning allowed";
+        startGPS();//since settings could have changed, restart GPS to set the correct positioning method
+    }
+    else
+    {
+        if (locationDataSource){//was already started
+            locationDataSource->stopUpdates();
+            locationDataSource = 0;
+        }
+    }
+
+    //stop any existing wifi scan timer because we don't know if we need it anymore and will recreate it below
+    wifiTimer->stop();
+
     //setup memory structure used to keep track of rules being active or not
 
     //as this DOES NOT happen often, it's okay to recreate from scratch
@@ -67,7 +151,6 @@ void Controller::rulesStorageChanged() {
     settings->beginGroup("rules");
     Q_FOREACH(const QString &strRuleName, settings->childGroups()){//for each rule
         settings->beginGroup(strRuleName);
-        //ui->listWidgetRules->addItem(strRuleName);//add name to screen list
         if (settings->value("enabled").toBool() == true){//if enabled
             Rule* newRule = new Rule();
             newRule->name = strRuleName;
@@ -77,10 +160,6 @@ void Controller::rulesStorageChanged() {
             DataLocation* ptrRuleDataLoc = new DataLocation;
             ptrRuleDataLoc->setParent(newRule);
             newRule->data.locationRule = ptrRuleDataLoc;
-//            connect(newRule->data.locationRule, SIGNAL(activeChanged(Rule*)),
-//                    this,SLOT(checkStatus(Rule*)));
-
-            //fill them -- TODO: need to check if the paths exist, default them
             ptrRuleDataLoc->active = false;//we can default the status to false, it will be re-evaluated within a minute
             ptrRuleDataLoc->enabled = settings->value("Location/enabled").toBool();
             ptrRuleDataLoc->inverseCond = settings->value("Location/NOT").toBool();
@@ -135,6 +214,29 @@ void Controller::rulesStorageChanged() {
             newRule->data.calendarRule.enabled = settings->value("Calendar/enabled").toBool();
             newRule->data.calendarRule.inverseCond = settings->value("Calendar/NOT").toBool();
             newRule->data.calendarRule.keywords = settings->value("Calendar/KEYWORDS").toString();
+            //WIFI
+            newRule->data.wifiRule.active = false;
+            newRule->data.wifiRule.setParent(newRule);
+            newRule->data.wifiRule.enabled = settings->value("WiFi/enabled",false).toBool();
+            newRule->data.wifiRule.inverseCond = settings->value("WiFi/NOT",false).toBool();
+
+            //make sure we have an enabled timer if required by this rule
+            if (newRule->data.wifiRule.enabled){
+                settings->endGroup();
+                settings->endGroup();//i thought if you start the value with a slash it would just work. nope.
+                qDebug() << "setting wifi timer for " << settings->value("/settings/WIFI/interval",9).toInt() * 60 << " seconds";
+                wifiTimer->start(60 * settings->value("/settings/WIFI/interval",9).toInt() - 15,
+                                 60 * settings->value("/settings/WIFI/interval",9).toInt() + 45);
+                settings->beginGroup("rules");
+                settings->beginGroup(strRuleName);
+                newRule->data.wifiRule.SSIDs = settings->value("/WiFi/SSIDs","").toString();
+                connect(&newRule->data.wifiRule, SIGNAL(activeChanged(Rule*)),
+                        this, SLOT(checkStatus(Rule*))
+                        );
+                if (!pendingScan)
+                    requestScan();
+            }
+
         }
         else{//rule was not enabled, we skipped all of the above
           //  ui->listWidgetRules->item(ui->listWidgetRules->count() - 1)->setForeground(Qt::red);
@@ -268,7 +370,35 @@ void DataTime::activated()
 //sets time rule to inactive
 void DataTime::deactivated()
 {
-    qDebug() << " time deactivated";
+    qDebug() << "time deactivated";
+    if (this->inverseCond == false)
+        this->active = false;
+    else
+        this->active = true;
+    Q_EMIT activeChanged((Rule*)this->parent());
+}
+
+//sets wifi rule to active
+void DataWifi::activated()
+{
+    qDebug() << "wifi activated";
+    if (this->inverseCond == false)
+        this->active = true;
+    else
+        this->active = false;
+    Q_EMIT activeChanged((Rule*)this->parent());
+}
+
+void DataWifi::pretendChanged()
+{
+    qDebug() << "pick me!";
+    Q_EMIT activeChanged((Rule*)this->parent());
+}
+
+//sets wifi rule to inactive
+void DataWifi::deactivated()
+{
+    qDebug() << "wifi deactivated";
     if (this->inverseCond == false)
         this->active = false;
     else
@@ -313,8 +443,22 @@ void Controller::startGPS()
 //this just does some boolean math to check if the whole rule is now active or inactive
 void Controller::checkStatus(Rule* ruleStruct)
 {
+    if (pendingScan){
+        qDebug()  << "waiting for scan";
+        connect(&ruleStruct->waitForScanTimer, SIGNAL(timeout()),
+                &ruleStruct->data.wifiRule, SLOT(pretendChanged()));
+
+        ruleStruct->waitForScanTimer.start(14,18);
+        ruleStruct->waitForScanTimer.setSingleShot(true);
+
+        return;
+    }
+
+    disconnect(&ruleStruct->waitForScanTimer, SIGNAL(timeout()),
+            &ruleStruct->data.wifiRule, SLOT(pretendChanged()));
+
     bool locationCond = false;
-    if (ruleStruct->data.locationRule->enabled)
+    if (ruleStruct->data.locationRule->enabled && locationDataSource) //no locationDataSource if user has disabled positioning
     {
         if (ruleStruct->data.locationRule->active)
             locationCond = true;
@@ -351,8 +495,21 @@ void Controller::checkStatus(Rule* ruleStruct)
     }
     else
         calendarCond = true;
-    qDebug() << "checkStatus() loc/time/cal " << ruleStruct->name << locationCond << timeCond << calendarCond ;
-    bool result = locationCond && timeCond && calendarCond;
+
+    bool wifiCond = false;
+    if (ruleStruct->data.wifiRule.enabled){
+        if (ruleStruct->data.wifiRule.active)
+            wifiCond = true;
+        else
+            wifiCond = false;
+        if(ruleStruct->data.wifiRule.inverseCond)
+            wifiCond = !wifiCond;
+    }
+    else
+        wifiCond = true;
+
+    qDebug() << "checkStatus() loc/time/cal/wifi " << ruleStruct->name << locationCond << timeCond << calendarCond << wifiCond;
+    bool result = locationCond && timeCond && calendarCond && wifiCond;
     ruleStruct->active = result;
 
     //should write some info to the status tab
@@ -435,6 +592,11 @@ void DataLocation::areaExited(const QGeoPositionInfo &update) {
 Rule::Rule()
 {
 }
+
+//Rule::checkMeNow()
+//{
+//    this->data.wifiRule.pretendChanged();
+//}
 
 Rule::~Rule()
 {

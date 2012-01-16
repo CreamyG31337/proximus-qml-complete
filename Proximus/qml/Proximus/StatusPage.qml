@@ -14,24 +14,7 @@ Page {
     Component.onCompleted: {
         txtLog.text += "\n" + objProximusUtils.isServiceRunning();
         txtLog.text += "\nSettings read from " + objQSettings.fileName();
+        txtLog.text += "\n\nNokia's non-satellite positioning methods may be bugged. Please see bug #641 at harmattan-bugs.nokia.com for more info. I added a new option to disable positioning completely for now.";
     }
 
-//    Rectangle{
-//        color: "red"
-//        anchors {
-//            top: txtLog.bottom
-//            left: parent.left
-//            right: parent.right
-//        }
-//        height: tabStatus.height - 155
-//    }
-//    Button{
-//        anchors {
-//            horizontalCenter: parent.horizontalCenter
-//            top: txtLog.bottom
-//            topMargin: 10
-//        }
-//        text: qsTr("status page")
-//        onClicked: label.visible = true
-//    }
 }

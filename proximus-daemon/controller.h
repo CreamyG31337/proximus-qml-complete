@@ -22,6 +22,7 @@
 #include <QtCore/QSettings>
 #include <QtCore/QDebug>
 #include <QtCore/QFileSystemWatcher>
+#include <QtDBus>
 
 
 
@@ -97,6 +98,23 @@ public Q_SLOTS:
 Q_SIGNALS:
     void activeChanged(Rule* ruleStruct);
 };
+
+class DataWifi : public QObject
+{
+    Q_OBJECT
+public:
+    bool enabled;
+    bool inverseCond;
+    bool active;
+    QString SSIDs;
+public Q_SLOTS:
+    void activated();
+    void deactivated();
+    void pretendChanged();
+Q_SIGNALS:
+    void activeChanged(Rule* ruleStruct);
+};
+
 struct RuleData
 {
     explicit RuleData();
@@ -104,6 +122,7 @@ struct RuleData
     QPointer<DataLocation> locationRule;
     DataTime timeRule;
     DataCalendar calendarRule;
+    DataWifi wifiRule;
 };
 class Rule : public QObject
 {
@@ -115,6 +134,9 @@ public:
     bool enabled;
     bool active;
     RuleData data;
+    QSystemAlignedTimer waitForScanTimer; //when a scan result is pending we wait a few seconds for the results before evaluating the rules
+//public Q_SLOTS:
+//    void checkMeNow();
 };
 
 class Controller : public QObject
@@ -128,22 +150,6 @@ public:
 
 signals:
 
-public Q_SLOTS:
-    /**
-     * Called when the current position is updated.
-     */
-//    void positionUpdated(QGeoPositionInfo geoPositionInfo);
-    /**
-     * Called when the number of satellites in use is updated.
-     */
-//    void satellitesInUseUpdated(
-//            const QList<QGeoSatelliteInfo> &satellites);
-//    /**
-//     * Called when the number of satellites in view is updated.
-//     */
-//    void satellitesInViewUpdated(
-//            const QList<QGeoSatelliteInfo> &satellites);
-
 private Q_SLOTS:
     /**
      * Initializes one area monitor, returns pointer to it.
@@ -152,13 +158,16 @@ private Q_SLOTS:
     /**
      * Starts to monitor updates in the number of satellites.
      */
-//    void startSatelliteMonitor();
 
     void updateCalendar();
 
     void checkStatus(Rule* ruleStruct);
 
     void rulesStorageChanged();
+
+    void recvScan(const QDBusMessage &msg);
+
+    void requestScan();
 
 private:
     QPointer<QGeoSatelliteInfoSource> satelliteInfoSource;
@@ -172,8 +181,11 @@ private:
     QHash<QString, Rule*> Rules;
     QPointer<QFileSystemWatcher> fswatcher;
     QPointer<QSystemAlignedTimer> calTimer;
-
     QOrganizerManager defaultManager;
+    QStringList nearbySSIDs;
+    QPointer<QSystemAlignedTimer> wifiTimer;
+    int pendingScan;
+    QSystemAlignedTimer waitAndReScanTimer; //when a scan is aborted because the wifi is busy, wait a bit and retry the scan.
 };
 
 #endif // CONTROLLER_H
