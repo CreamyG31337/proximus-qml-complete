@@ -18,11 +18,15 @@ symbian:TARGET.CAPABILITY += NetworkServices
 
 SOURCES += main.cpp \
     controller.cpp \
-    profileclient.cpp
+    profileclient.cpp \
+    calwrapper.cpp \
+    dbusiface.cpp
 
 HEADERS += \
     controller.h \
-    profileclient.h
+    profileclient.h \
+    calwrapper.h \
+    dbusiface.h
 
 CONFIG += mobility
 QT += xml network svg dbus
@@ -33,6 +37,12 @@ MOBILITY += systeminfo
 MOBILITY += organizer
 
 INCLUDEPATH += /usr/include/
+#t:\ is mapped to /scratchbox/ on my VMware machine; seems to work fine like this
+LIBS += -ldl t:\users\lance\targets\HARMATTAN_ARMEL\usr\lib\libmkcal.so
+LIBS += -ldl t:/users/lance/targets/HARMATTAN_ARMEL/usr/lib/libkcalcoren.so
+INCLUDEPATH += /usr/include/kcalcoren
+INCLUDEPATH += /usr/include/mkcal
+
 
 # Please do not modify the following two lines. Required for deployment.
 include(deployment.pri)

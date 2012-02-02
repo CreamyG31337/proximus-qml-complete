@@ -1,7 +1,7 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'controller.h'
 **
-** Created: Mon Jan 16 01:03:10 2012
+** Created: Wed Feb 1 23:58:58 2012
 **      by: The Qt Meta Object Compiler version 62 (Qt 4.7.4)
 **
 ** WARNING! All changes made in this file will be lost!
@@ -367,7 +367,7 @@ static const uint qt_meta_data_Controller[] = {
        5,       // revision
        0,       // classname
        0,    0, // classinfo
-       6,   14, // methods
+       7,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -381,6 +381,7 @@ static const uint qt_meta_data_Controller[] = {
      116,   11,   11,   11, 0x08,
      142,  138,   11,   11, 0x08,
      165,   11,   11,   11, 0x08,
+     187,  179,   11,   11, 0x08,
 
        0        // eod
 };
@@ -391,6 +392,7 @@ static const char qt_meta_stringdata_Controller[] = {
     "updateCalendar()\0ruleStruct\0"
     "checkStatus(Rule*)\0rulesStorageChanged()\0"
     "msg\0recvScan(QDBusMessage)\0requestScan()\0"
+    "strInfo\0didSomething(QString)\0"
 };
 
 const QMetaObject Controller::staticMetaObject = {
@@ -429,9 +431,10 @@ int Controller::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
         case 3: rulesStorageChanged(); break;
         case 4: recvScan((*reinterpret_cast< const QDBusMessage(*)>(_a[1]))); break;
         case 5: requestScan(); break;
+        case 6: didSomething((*reinterpret_cast< QString(*)>(_a[1]))); break;
         default: ;
         }
-        _id -= 6;
+        _id -= 7;
     }
     return _id;
 }

@@ -23,6 +23,7 @@
 #include <QtCore/QDebug>
 #include <QtCore/QFileSystemWatcher>
 #include <QtDBus>
+#include <calwrapper.h>
 
 
 
@@ -147,7 +148,8 @@ public:
     //destructor
     virtual ~Controller();
     QPointer<QGeoPositionInfoSource> locationDataSource;
-
+    void startExternalTimer(int min, int max);
+    QSystemAlignedTimer externalTimer; //can be used by other processes not written with Qt / cpp
 signals:
 
 private Q_SLOTS:
@@ -169,6 +171,8 @@ private Q_SLOTS:
 
     void requestScan();
 
+    void didSomething(QString strInfo);
+
 private:
     QPointer<QGeoSatelliteInfoSource> satelliteInfoSource;
 
@@ -185,7 +189,8 @@ private:
     QStringList nearbySSIDs;
     QPointer<QSystemAlignedTimer> wifiTimer;
     int pendingScan;
-    QSystemAlignedTimer waitAndReScanTimer; //when a scan is aborted because the wifi is busy, wait a bit and retry the scan.
+    QSystemAlignedTimer waitAndReScanTimer; //when a scan is aborted because the wifi is busy, wait a bit and retry the scan.    
+    QPointer<CalWrapper> myCalWrapper; //I don't trust this thing to clean up when destroyed based on QOrganizerManager leaking like a sieve. Better to just hold onto one ref for now.
 };
 
 #endif // CONTROLLER_H

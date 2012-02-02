@@ -74,7 +74,8 @@ QT += xml network svg
 
 # The .cpp file which was generated for your project. Feel free to hack it.
 SOURCES += main.cpp \
-    profileclient.cpp
+    profileclient.cpp \
+    dbusiface.cpp
 
 # Please do not modify the following two lines. Required for deployment.
 include(qmlapplicationviewer/qmlapplicationviewer.pri)
@@ -82,4 +83,5 @@ qtcAddDeployment()
 
 HEADERS += \
     main.h \
-    profileclient.h
+    profileclient.h \
+    dbusiface.h

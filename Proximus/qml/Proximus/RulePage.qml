@@ -91,7 +91,7 @@ Page{
             verticalAlignment: Text.AlignVCenter
             text: "Switch Profile "
         }
-        TumblerButton{
+        TumblerButton12{
             id: btnChooseProfile
             anchors.left: lblSwProfile.right
             anchors.verticalCenter: lblSwProfile.verticalCenter
@@ -99,23 +99,49 @@ Page{
             onClicked: tDialog.open();
             enabled: swChangeProfile.checked
         }
-        TumblerDialog{
+        TumblerDialog12{
             id: tDialog
             titleText: "Select Profile"
             columns: [ profileColumn ]
             acceptButtonText: "Ok"
             onAccepted: btnChooseProfile.text = profileColumn.items[profileColumn.selectedIndex]; //thanks for depricating label...
         }
-        TumblerColumn{
+        TumblerColumn12{
             id: profileColumn
             items: objProfileClient.profileTypes()
+        }
+        Switch{
+            anchors.top: swChangeProfile.bottom
+            id: swCreateReminder
+            checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/Reminder/enabled",true)
+        }
+        Label{
+            anchors.margins: 7
+            anchors.top: swChangeProfile.bottom
+            anchors.left: swCreateReminder.right
+            height: swCreateReminder.height
+            verticalAlignment: Text.AlignVCenter
+            text: "Create Reminder "
+        }
+        TextField{
+            id: txtReminderText
+            width: parent.width - 20
+            height: 45
+            anchors.top: swCreateReminder.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: objQSettings.getValue("/rules/" + ruleName + "/Actions/Reminder/TEXT","")
+            placeholderText: "enter reminder message"
+            font.pixelSize: 26
+            validator: RegExpValidator{regExp: /(\w+ *)+/}
+            maximumLength: 255
+            enabled: swCreateReminder.checked
         }
 
 //////////////////RULES
         Label{
             id: lblActivationHeader
             text: "When..."
-            anchors.top: swChangeProfile.bottom
+            anchors.top: txtReminderText.bottom
             anchors.margins: 5
             height: 20
         }
@@ -492,6 +518,9 @@ Page{
                 if (swChangeProfile.checked && btnChooseProfile.text == "choose") {
                     errorString += "Choose a profile to switch to\n"
                 }
+                if (swCreateReminder.checked && !txtReminderText.acceptableInput) {
+                    errorString += "Enter a short message to display for the reminder or disable that section\n"
+                }
                 if (txtCalendarKeywords.enabled && !txtCalendarKeywords.acceptableInput){
                     errorString += "Enter calendar keywords or disable that section\n"
                 }
@@ -503,6 +532,9 @@ Page{
                 }
                 if (txtLocLatitude.enabled && (!txtLocLatitude.acceptableInput || !txtLocLongitude.acceptableInput )){
                     errorString += "Use the fill from map button, manually enter valid coordinates, or disable that section\n"
+                }
+                if (swUseWIFI.checked && !txtWiFiNetworks.acceptableInput){
+                    errorString += "Enter at least one valid SSID or disable that section\n"
                 }
                 if (errorString.length > 1){
                     showError(errorString);
@@ -526,6 +558,11 @@ Page{
 
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Actions/Profile/enabled",swChangeProfile.checked);
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Actions/Profile/NAME", btnChooseProfile.text);
+
+                objQSettings.setValue("/rules/" + txtRuleName.text + "/Actions/Reminder/enabled",swCreateReminder.checked);
+                if (swCreateReminder.checked){
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Actions/Reminder/TEXT",txtReminderText.text);
+                }
 
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/enabled",swUseLocation.checked);
                 if (swUseLocation.checked){

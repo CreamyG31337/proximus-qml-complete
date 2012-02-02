@@ -3,14 +3,18 @@
 #include "wlancond-dbus.h"
 #include "wlancond.h"
 
-Controller::Controller(QObject *parent) :
-    QObject(parent), settings(new QSettings("/home/user/.config/FakeCompany/Proximus.conf",QSettings::NativeFormat,this))
+Controller::Controller(QObject *parent) : QObject(parent)
+    ,settings(new QSettings("/home/user/.config/FakeCompany/Proximus.conf",QSettings::NativeFormat,this))
     ,fswatcher(new QFileSystemWatcher(this))
     ,calTimer(new QSystemAlignedTimer(this))
     ,wifiTimer(new QSystemAlignedTimer(this))
+    ,myCalWrapper(new CalWrapper(this))
+    ,externalTimer(new QSystemAlignedTimer(this))
+
 
 {//important to init qsettings like that so it doesn't store in /home/root/ or whatever other account name
     qDebug() << "starting proximus";
+    didSomething("Proximus Daemon starting up");
     pendingScan = false;
     fswatcher->addPath("/home/user/.config/FakeCompany/Proximus.conf");
     connect(fswatcher, SIGNAL(fileChanged(QString)),
@@ -43,6 +47,12 @@ Controller::Controller(QObject *parent) :
             this, SLOT(requestScan()));
 
     qDebug() << "init complete";
+    didSomething("Proximus Daemon startup complete.");
+}
+
+void Controller::startExternalTimer(int min, int max){
+    externalTimer.start(min,max);
+    didSomething("External Timer started - min/max: " + QString::number(min) + "/" +  QString::number(max));
 }
 
 void Controller::recvScan(const QDBusMessage &msg)
@@ -55,6 +65,7 @@ void Controller::recvScan(const QDBusMessage &msg)
         nearbySSIDs.append(args.value(pos).value<QByteArray>());
     }
     qDebug() << nearbySSIDs;
+    didSomething("wifi scan sees SSIDs: " + nearbySSIDs.join(", "));
     //check all rules now
     bool match;
     pendingScan = false;
@@ -95,6 +106,7 @@ void Controller::requestScan()
         if  (reply.errorMessage() == "com.nokia.wlancond.error.already_active"){
             //wait and rescan
             qDebug() << "stupid thing is busy";
+            qDebug() << "wifi reports busy - waiting for rescan";
             waitAndReScanTimer.start(7,13);
             waitAndReScanTimer.setSingleShot(true);
         }
@@ -103,13 +115,22 @@ void Controller::requestScan()
     }
 }
 
+void Controller::didSomething(QString strInfo)
+{
+    QDBusInterface remoteApp("net.appcheck.Proximus.UI", "/Proximus/UI",
+                             "net.appcheck.Proximus.UI" , QDBusConnection::sessionBus());
+    QDBusMessage PossibleError = remoteApp.call("updateLog",strInfo);
+}
+
 
 Controller::~Controller()
 {
     delete settings;
     delete fswatcher;
     delete calTimer;
+    delete wifiTimer;
     delete satelliteInfoSource;
+    delete myCalWrapper;
 }
 
 void Controller::rulesStorageChanged() {
@@ -118,6 +139,7 @@ void Controller::rulesStorageChanged() {
     //if service is supposed to be disabled, just exit
     if (settings->value("/settings/Service/enabled",true).toBool() == false){
         qDebug() << "service supposed to be disabled, exiting";
+        didSomething("service supposed to be disabled, exiting");
         exit(0);
     }
 
@@ -166,7 +188,7 @@ void Controller::rulesStorageChanged() {
             ptrRuleDataLoc->radius = settings->value("Location/RADIUS").toInt();
             ptrRuleDataLoc->location.setLongitude(settings->value("Location/LONGITUDE").toDouble());
             ptrRuleDataLoc->location.setLatitude(settings->value("Location/LATITUDE").toDouble());
-            if (ptrRuleDataLoc->enabled)
+            if (ptrRuleDataLoc->enabled && locationDataSource)
             {
                 ptrRuleDataLoc->areaMon = initAreaMonitor(ptrRuleDataLoc);
             }
@@ -251,7 +273,7 @@ void Controller::rulesStorageChanged() {
 //checks calendar for any keyword matches and sets more timers to change the rule to active when those become current.
 //if this api made any sense, i could use signals too
 void Controller::updateCalendar()
-{//ugh so this thing opens the current users calendar... root / developer = bad
+{//ugh so this thing opens the current users calendar... root / developer = bad      
 //    QOrganizerManager defaultManager(this); //provides access to system address book, calendar
    // qDebug() << "params: " << defaultManager.managerParameters().values().count(); // params:  0
     //qDebug() << "manager: " << defaultManager.managerUri(); // manager:  "qtorganizer:mkcal:"
@@ -271,6 +293,7 @@ void Controller::updateCalendar()
         qDebug() << "found # keywords: " << keywordList.count();
         //then loop through all the upcoming calendar events
         qDebug() << "searching " << entries.count() << "calendar entries for the next hour";
+        didSomething("checking next hour of calendar data (" +  QString::number(entries.count()) + " items) for keywords");
         Q_FOREACH(QOrganizerItem orgItem, entries){
             //and each individual keyword
             Q_FOREACH(QString keyword, keywordList){
@@ -325,7 +348,7 @@ void Controller::updateCalendar()
                 }
                 //if keywords not found but rule is inversed, we still need to set to active (now)
                 if (foundMatch == false && ruleStruct->data.calendarRule.inverseCond == true)
-                {//need to set directly
+                {//need to set directly (or we could have called deactivated(). whatever.)
                      ruleStruct->data.calendarRule.active = true;
                      checkStatus(ruleStruct);
                 }
@@ -414,8 +437,10 @@ void Controller::startGPS()
         if (!locationDataSource){
             // Not able to obtain the location data source
             qDebug() << "GPS FAILURE";
+            didSomething("GPS FAILURE");
             return;
             }
+        didSomething("Positioning started");
     }
 
 
@@ -425,6 +450,7 @@ void Controller::startGPS()
         else
             qDebug() << "skipped gps method set";
         qDebug() << "gps on";
+        didSomething("GPS enabled");
     }
     else {
         if (locationDataSource->preferredPositioningMethods() != QGeoPositionInfoSource::NonSatellitePositioningMethods)
@@ -432,6 +458,7 @@ void Controller::startGPS()
         else
             qDebug() << "skipped gps method set";
         qDebug() << "gps off";
+        didSomething("GPS disabled");
     }
     locationDataSource->setUpdateInterval(settings->value("/settings/GPS/enabled",60).toInt() * 1000);
 
@@ -445,6 +472,7 @@ void Controller::checkStatus(Rule* ruleStruct)
 {
     if (pendingScan){
         qDebug()  << "waiting for scan";
+        didSomething("Rule status check delayed by pending wifi scan");
         connect(&ruleStruct->waitForScanTimer, SIGNAL(timeout()),
                 &ruleStruct->data.wifiRule, SLOT(pretendChanged()));
 
@@ -457,7 +485,7 @@ void Controller::checkStatus(Rule* ruleStruct)
     disconnect(&ruleStruct->waitForScanTimer, SIGNAL(timeout()),
             &ruleStruct->data.wifiRule, SLOT(pretendChanged()));
 
-    bool locationCond = false;
+    QVariant locationCond = false;
     if (ruleStruct->data.locationRule->enabled && locationDataSource) //no locationDataSource if user has disabled positioning
     {
         if (ruleStruct->data.locationRule->active)
@@ -465,12 +493,12 @@ void Controller::checkStatus(Rule* ruleStruct)
         else
             locationCond = false;
         if (ruleStruct->data.locationRule->inverseCond)
-            locationCond = !locationCond;
+            locationCond = !locationCond.toBool();
     }
     else
         locationCond = true;
 
-    bool timeCond = false;
+    QVariant timeCond = false;
     if (ruleStruct->data.timeRule.enabled)
     {
         if (ruleStruct->data.timeRule.active)
@@ -478,12 +506,12 @@ void Controller::checkStatus(Rule* ruleStruct)
         else
             timeCond = false;
         if (ruleStruct->data.timeRule.inverseCond)
-            timeCond = !timeCond;
+            timeCond = !timeCond.toBool();
     }
     else
         timeCond = true;
 
-    bool calendarCond = false;
+    QVariant calendarCond = false;
     if (ruleStruct->data.calendarRule.enabled)
     {
         if (ruleStruct->data.calendarRule.active)
@@ -491,48 +519,57 @@ void Controller::checkStatus(Rule* ruleStruct)
         else
             calendarCond = false;
         if (ruleStruct->data.calendarRule.inverseCond)
-            calendarCond = !calendarCond;
+            calendarCond = !calendarCond.toBool();
     }
     else
         calendarCond = true;
 
-    bool wifiCond = false;
+    QVariant wifiCond = false;
     if (ruleStruct->data.wifiRule.enabled){
         if (ruleStruct->data.wifiRule.active)
             wifiCond = true;
         else
             wifiCond = false;
         if(ruleStruct->data.wifiRule.inverseCond)
-            wifiCond = !wifiCond;
+            wifiCond = !wifiCond.toBool();
     }
     else
         wifiCond = true;
-
+    didSomething("Status of '" + ruleStruct->name + "' loc/time/cal/wifi" +" = " + locationCond.toString() + " " + timeCond.toString() + " " + calendarCond.toString() + " "+ wifiCond.toString());
     qDebug() << "checkStatus() loc/time/cal/wifi " << ruleStruct->name << locationCond << timeCond << calendarCond << wifiCond;
-    bool result = locationCond && timeCond && calendarCond && wifiCond;
+    bool result = locationCond.toBool() && timeCond.toBool() && calendarCond.toBool() && wifiCond.toBool();
     ruleStruct->active = result;
-
-    //should write some info to the status tab
 
     if (result)
     {
         settings->beginGroup("rules");
         settings->beginGroup(ruleStruct->name);
-        if (settings->value("Actions/Run/enabled",false).toBool() == true)
-        {//run
-            qDebug() << "supposed to run something";
-        }
         if (settings->value("Actions/Profile/enabled",false).toBool() == true)
-        {//set profile
+        {//set profile first to enable / disable sounds during other actions
             #ifndef Q_WS_SIMULATOR
             qDebug() << "attempting to switch to profile " << settings->value("Actions/Profile/NAME","").toString();
+            didSomething("switching to profile " + settings->value("Actions/Profile/NAME","").toString());
             ProfileClient *profileClient = new ProfileClient(this);
-            if (!profileClient->setProfile(settings->value("Actions/Profile/NAME","").toString()) )
+            if (!profileClient->setProfile(settings->value("Actions/Profile/NAME","").toString()))
                 qDebug() << "failed to switch profile!!";
             delete profileClient;
             #else
-
             #endif
+        }
+        if (settings->value("Actions/Reminder/enabled",false).toBool() == true) {
+            //check if this action was done in the last 12 hours. secsto will be negative or zero if not
+            if (QDateTime::currentDateTime().secsTo(settings->value("Actions/Reminder/DisableUntil",QDateTime::currentDateTime()).toDateTime()) < 60){
+
+            //I don't think the process watching for these alarms will catch it in time if you set it only a few seconds away. It didn't work in my initial testing anyways.
+            myCalWrapper->setAlarm(QDateTime::currentDateTime().addSecs(70), QDateTime::currentDateTime().addSecs(130),settings->value("Actions/Reminder/TEXT","unknown").toString());
+            //disable alarm for 12 hours, i will make this configurable later
+            settings->setValue("Actions/Reminder/DisableUntil",QDateTime::currentDateTime().addSecs(3600 * 12));
+            }
+            else{
+                qDebug() << "skipping create new reminder, disabled until " << settings->value("Actions/Reminder/DisableUntil",QDateTime::currentDateTime()).toDateTime();
+                qDebug() << "code got now.secsto as " << QDateTime::currentDateTime().secsTo(settings->value("Actions/Reminder/DisableUntil",QDateTime::currentDateTime()).toDateTime());
+                didSomething("skipping create new reminder, disabled until " + (settings->value("Actions/Reminder/DisableUntil",QDateTime::currentDateTime()).toDateTime()).toString()  );
+            }
         }
         settings->endGroup();
         settings->endGroup();
@@ -592,11 +629,6 @@ void DataLocation::areaExited(const QGeoPositionInfo &update) {
 Rule::Rule()
 {
 }
-
-//Rule::checkMeNow()
-//{
-//    this->data.wifiRule.pretendChanged();
-//}
 
 Rule::~Rule()
 {

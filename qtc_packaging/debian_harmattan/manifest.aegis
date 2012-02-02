@@ -1,4 +1,24 @@
 <aegis>
+        <provide>
+            <credential name="access" />
+            <dbus name="net.appcheck.Proximus" bus="session">
+            <annotation name="com.maemo.Aegis" value=""/>
+              <node name="/">
+                <interface name="net.appcheck.Proximus">
+                 </interface>
+              </node>
+            </dbus>
+            <for path="/opt/proximus-daemon/bin/proximus-daemon" />
+            <dbus name="net.appcheck.Proximus.UI" bus="session">
+            <annotation name="com.maemo.Aegis" value=""/>
+              <node name="/Proximus/UI">
+                <interface name="net.appcheck.Proximus.UI">
+                 </interface>
+              </node>
+            </dbus>
+            <for path="/opt/Proximus/bin/Proximus" />
+            <for path="applauncherd-launcher::/usr/bin/applauncherd.bin" id="" />
+        </provide>
         <request policy="add">
                 <!-- Application accesses DBus libraries directly. -->
 

@@ -20,7 +20,7 @@ Page{
     tools: noTools
     Label{
         id: lblVersion
-        text: "Proximus version 1.0"
+        text: "Proximus version 1.2.5"
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.topMargin: 20
@@ -31,6 +31,32 @@ Page{
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.topMargin: 20
         anchors.top: lblVersion.bottom
+    }
+    Label{
+        id: lblLinkProximus
+        text: "latest version / more info"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: 20
+        anchors.top: lblPublisher.bottom
+        font.underline: true
+        color: "steelblue"
+        MouseArea{
+            anchors.fill: parent
+            onClicked: Qt.openUrlExternally("http://talk.maemo.org/showthread.php?t=81174")
+        }
+    }
+    Label{
+        id: lblLinkConky
+        text: "see another app I ported to the N9 -- Conky"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: 20
+        anchors.top: lblLinkProximus.bottom
+        font.underline: true
+        color: "steelblue"
+        MouseArea{
+            anchors.fill: parent
+            onClicked: Qt.openUrlExternally("http://talk.maemo.org/showthread.php?t=81392")
+        }
     }
 
 }

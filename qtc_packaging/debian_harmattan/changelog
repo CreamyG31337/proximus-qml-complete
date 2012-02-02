@@ -1,3 +1,34 @@
+proximus-complete (1.2.5) unstable; urgency=low
+  * better logging. status screen now shows what the daemon is doing.
+
+ -- lance colton <lance.colton@gmail.com>  Thu, 02 Feb 2012 01:12:03 -0700
+
+proximus-complete (1.2.4) unstable; urgency=low
+  * external dbus interface listens for a request to create a heartbeat timer and emits it as a signal
+
+ -- lance colton <lance.colton@gmail.com>  Fri, 27 Jan 2012 00:29:01 -0700
+
+proximus-complete (1.2.3) unstable; urgency=low
+  * fixed bug that rule with gps location still started gps when gps disabled in settings
+
+ -- lance colton <lance.colton@gmail.com>  Wed, 18 Jan 2012 14:50:40 -0700
+
+proximus-complete (1.2.2) unstable; urgency=low
+  * fixed bug blocking blank ssid even when disabled section
+
+ -- lance colton <lance.colton@gmail.com>  Wed, 18 Jan 2012 13:21:51 -0700
+
+proximus-complete (1.2.1) unstable; urgency=low
+  * Integrated TumblerDialog to fix pre PR1.1 phones
+
+ -- lance colton <lance.colton@gmail.com>  Wed, 18 Jan 2012 12:28:04 -0700
+
+proximus-complete (1.2.0) unstable; urgency=low
+  * added new action, setting "visual reminder". basically will pop up an
+    alarm event when you are at the predefined location
+
+ -- lance colton <lance.colton@gmail.com>  Tue, 17 Jan 2012 19:40:02 -0700
+
 proximus-complete (1.1.0) unstable; urgency=low
   * added support for wifi network scanning and rules
   * also added option to disable other positioning completely

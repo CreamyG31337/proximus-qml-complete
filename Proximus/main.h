@@ -4,6 +4,7 @@
 #include <QtGui/QApplication>
 #include <QtDeclarative/QDeclarativeView>
 #include <QtDeclarative/QDeclarativeEngine>
+#include <QtDeclarative>
 #include <MDeclarativeCache>
 #include <QtCore/QSettings>
 #include <QtDeclarative/QDeclarativeContext>
@@ -17,6 +18,15 @@
 #include <QDebug>
 #include <QSharedPointer>
 
+class ProximusLog : public QObject
+{
+    Q_OBJECT
+
+signals:
+    void newLogInfo(const QVariant &LogText);
+};
+
+
 class ProximusUtils : public QObject
 {
     Q_OBJECT
@@ -25,6 +35,7 @@ public:
     Q_INVOKABLE void refreshRulesModel();
     QList<QObject*> *rules_ptr;
     QSharedPointer<QDeclarativeView> view_ptr;
+
 };
 
 //annoying wrapper class for qsettings

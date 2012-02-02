@@ -1,9 +1,12 @@
 #include <QtGui/QApplication>
 #include <QtDeclarative/QDeclarativeView>
 #include <QtDeclarative/QDeclarativeEngine>
+#include <QCoreApplication>
+#include <QDeclarativeComponent>
 #include <MDeclarativeCache>
 #include <main.h>
 #include <profileclient.h>
+#include <dbusiface.h>
 
 MySettings::MySettings():
     qsettInternal(new QSettings("/home/user/.config/FakeCompany/Proximus.conf",QSettings::NativeFormat,this))
@@ -83,10 +86,28 @@ Q_DECL_EXPORT int main(int argc, char *argv[])
     QCoreApplication::setOrganizationDomain("appcheck.net");
     QCoreApplication::setApplicationName("Proximus");
 
-    QScopedPointer<QApplication> app(MDeclarativeCache::qApplication(argc, argv));
+    QApplication* app = MDeclarativeCache::qApplication(argc, argv);
+
+    qmlRegisterType<ProximusLog>("net.appcheck.Proximus", 1, 0, "ProximusLog");
+
+    //QDeclarativeEngine engine;
+    //QDeclarativeComponent component(&engine, QUrl("qrc:StatusPage.qml"));
+    //ProximusLog *objProximusLog = qobject_cast<ProximusLog *>(component.create());
+
     QSharedPointer<QDeclarativeView> view(MDeclarativeCache::qDeclarativeView());
 
+
     ProximusUtils objproximusUtils;
+    ProximusLog objProximusLog;
+
+
+    DbusIface dbusIface(&objProximusLog);
+//    QObject::connect(&dbusIface, SIGNAL(newLogInfo(QVariant)),
+//           &objProximusLog, SIGNAL(newLogInfo(QVariant)));
+
+    QDBusConnection::sessionBus().registerObject("/Proximus/UI",&objProximusLog);
+    QDBusConnection::sessionBus().registerService("net.appcheck.Proximus.UI");
+
 
     MySettings objSettings;
     QList<QObject*> rulesList;
@@ -130,6 +151,7 @@ Q_DECL_EXPORT int main(int argc, char *argv[])
 
     view->rootContext()->setContextProperty("objProfileClient",profileClient);
 
+    view->rootContext()->setContextProperty("objProximusLog",&objProximusLog);
     view->rootContext()->setContextProperty("objProximusUtils",&objproximusUtils);
     view->rootContext()->setContextProperty("objQSettings",&objSettings);
     view->rootContext()->setContextProperty("objRulesModel", QVariant::fromValue(rulesList));

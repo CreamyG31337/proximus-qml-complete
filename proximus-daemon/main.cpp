@@ -1,8 +1,10 @@
 #include <QtCore/QCoreApplication>
 #include "controller.h"
+#include "dbusiface.h"
 #include <QtDebug>
 #include <QFile>
 #include <QTextStream>
+#include <QObject>
 
 void customMessageHandler(QtMsgType type, const char *msg)
 {
@@ -41,10 +43,13 @@ int main(int argc, char *argv[])
 
 //    qInstallMsgHandler(customMessageHandler);
     Controller controller;
-//    MainWindow mainWindow;
-//    mainWindow.setOrientation(MainWindow::ScreenOrientationAuto);
-//    mainWindow.showExpanded();
-//    app.setGlobalStrut(QSize(45,45));//increase size of scrollbars by setting global minimum size of all widgets
+    DbusIface dbusIface(&controller);
+    QDBusConnection::sessionBus().registerObject("/Proximus",&controller);
+    QDBusConnection::sessionBus().registerService("net.appcheck.Proximus");
+
+    QObject::connect (&controller.externalTimer, SIGNAL(timeout()),
+             &dbusIface,SIGNAL(heartbeat()));
+
     return app.exec();
 }
 
