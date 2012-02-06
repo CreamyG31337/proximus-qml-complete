@@ -57,6 +57,7 @@ Page {
             MenuItem { text: qsTr("About Proximus"); onClicked: pageStack.push(Qt.resolvedUrl("AboutPage.qml"))}
             MenuItem { text: qsTr("Send Feedback"); onClicked: pageStack.push(Qt.resolvedUrl("FeedbackPage.qml"))}
             MenuItem { text: qsTr("Clear Settings"); onClicked: pageStack.push(Qt.resolvedUrl("ResetPage.qml"))}
+            MenuItem { text: qsTr("Invert Colors"); onClicked: { theme.inverted = !theme.inverted; objQSettings.setValue("/settings/THEME/inverted", theme.inverted)}}
         }
     }
 }

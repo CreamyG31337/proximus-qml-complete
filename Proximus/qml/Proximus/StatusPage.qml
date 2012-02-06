@@ -11,10 +11,12 @@ Page {
         contentHeight: txtLog.height
         //contentWidth: childrenRect.width
         TextArea {
+            //platformInverted doesn't work.
+
             id: txtLog
             text: qsTr("Welcome to Proximus")
             anchors {top: parent.top; left: parent.left; right: parent.right;}
-            readOnly: true;
+            readOnly: true;           
             Connections {
                 target: objProximusLog
                 onNewLogInfo: {

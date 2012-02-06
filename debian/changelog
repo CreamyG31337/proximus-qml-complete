@@ -1,3 +1,10 @@
+proximus-complete (1.2.6) unstable; urgency=low
+  * Days of Week support added
+  * Inverted color theme by default, menu option to switch. this setting is saved.
+  * minor changes to code to support inverted theme
+
+ -- lance colton <lance.colton@gmail.com>  Sat, 04 Feb 2012 18:55:07 -0700
+
 proximus-complete (1.2.5) unstable; urgency=low
   * better logging. status screen now shows what the daemon is doing.
 

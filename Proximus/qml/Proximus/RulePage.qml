@@ -49,7 +49,8 @@ Page{
 
     Flickable{
     anchors.fill: parent
-    contentHeight: 800
+    contentHeight: 950
+    //contentHeight: childrenRect.height
         TextField{
             anchors.top: parent.top
             anchors.horizontalCenter: parent.horizontalCenter
@@ -80,7 +81,7 @@ Page{
         Switch{
             anchors.top: lblActionHeader.bottom
             id: swChangeProfile
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/Profile/enabled",true)
+            checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/Profile/enabled",false)
         }
         Label{
             anchors.margins: 7
@@ -113,7 +114,7 @@ Page{
         Switch{
             anchors.top: swChangeProfile.bottom
             id: swCreateReminder
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/Reminder/enabled",true)
+            checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/Reminder/enabled",false)
         }
         Label{
             anchors.margins: 7
@@ -150,7 +151,7 @@ Page{
             anchors.top: lblActivationHeader.bottom
             anchors.margins: 5
             id: swUseLocation
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Location/enabled",true)
+            checked: objQSettings.getValue("/rules/" + ruleName + "/Location/enabled",false)
         }
         Label{
             anchors.top: lblActivationHeader.bottom
@@ -158,7 +159,6 @@ Page{
             height: swUseLocation.height
             verticalAlignment: Text.AlignVCenter
             text: "Location match"
-            color: "black"
         }
         Label{
             anchors.top: lblActivationHeader.bottom
@@ -167,9 +167,6 @@ Page{
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignRight
             text: "NOT"
-            font.pixelSize: 24
-            color: "black"
-
         }
         Switch{
             id: swUseLocationNot
@@ -306,7 +303,7 @@ Page{
             anchors.top: btnFillFromMap.bottom
             anchors.left: parent.left
             anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Calendar/enabled",true)
+            checked: objQSettings.getValue("/rules/" + ruleName + "/Calendar/enabled",false)
         }
         Label{
             anchors.top: btnFillFromMap.bottom
@@ -314,16 +311,12 @@ Page{
             height: swUseCalendar.height
             verticalAlignment: Text.AlignVCenter
             text: "Calendar keyword match"
-            font.pixelSize: 24
-            color: "black"
         }
         Label{
             height: swUseCalendar.height
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignRight
             text: "NOT"
-            font.pixelSize: 24
-            color: "black"
             anchors.right: swUseCalendarNOT.left
             anchors.top: btnFillFromMap.bottom
         }
@@ -348,37 +341,128 @@ Page{
             maximumLength: 255
             enabled: swUseCalendar.checked
         }
-
-        //////////////////////////TIMES
+        ////////////////Days of week
         Switch{
-            id: swUseTime
+            id: swDaysOfWeek
             anchors.top: txtCalendarKeywords.bottom
             anchors.left: parent.left
             anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Time/enabled",true)
+            checked: objQSettings.getValue("/rules/" + ruleName + "/DaysOfWeek/enabled",false)
         }
         Label{
             anchors.top: txtCalendarKeywords.bottom
             anchors.left: swUseTime.right
-            height: swUseTimeNot.height
+            height: swDaysOfWeekNOT.height
             verticalAlignment: Text.AlignVCenter
-            text: "Between these times"
-            color: "black"
+            text: "On these days"
         }
         Label{
             anchors.top: txtCalendarKeywords.bottom
+            anchors.right: swDaysOfWeekNOT.left
+            height: swDaysOfWeekNOT.height
+            verticalAlignment: Text.AlignVCenter
+            horizontalAlignment: Text.AlignRight
+            text: "NOT"
+        }
+        Switch{
+            id: swDaysOfWeekNOT
+            anchors.top: txtCalendarKeywords.bottom
+            anchors.right: parent.right
+            anchors.margins: 5
+            checked: objQSettings.getValue("/rules/" + ruleName + "/DaysOfWeek/NOT",false)
+            enabled: swUseTime.checked
+        }
+        Button{
+            id: btnSelectDausOfWeek
+            anchors.top: swDaysOfWeek.bottom
+            anchors.margins: 5
+            text:"Choose Days"
+            onClicked: daysOfWeekSelectionDialog.open();
+
+        }
+
+        MultiSelectionDialog {
+            id: daysOfWeekSelectionDialog
+            titleText: "Choose Days"
+            acceptButtonText: "OK"
+            selectedIndexes: objQSettings.getValue("/rules/" + ruleName + "/DaysOfWeek/INDEXES",[]);
+            model: ListModel{
+                ListElement { name: "Sunday" }
+                ListElement { name: "Monday" }
+                ListElement { name: "Tuesday" }
+                ListElement { name: "Wednesday" }
+                ListElement { name: "Thursday" }
+                ListElement { name: "Friday" }
+                ListElement { name: "Saturday" }
+            }
+
+        }
+
+        Grid{
+            id: daysOfWeekGrid
+            anchors.top: btnSelectDausOfWeek.bottom
+            anchors.margins: 5
+                columns: screen.orientation == Screen.Landscape || screen.orientation == Screen.LandscapeInverted ? 8 : 4
+            Component{
+                id: name_delegate
+                Rectangle{
+                    width: 100
+                    height: 30
+                    color: "lightgray"
+                    Label{
+                        anchors.centerIn: parent
+                        text: daysOfWeekSelectionDialog.model.get(daysOfWeekSelectionDialog.selectedIndexes[index]).name
+                        font.pixelSize: 15
+                        font.bold: true
+                    }
+                }
+            }
+            Rectangle {
+                width: 100
+                height: 30
+                color: "white"
+                Label{
+                    y: 10
+                    anchors.centerIn: parent
+                    text: "Selected:"
+                    font.pixelSize: 15
+                    font.bold: true
+                    color: "black"
+                }
+
+            }
+            Repeater{
+                model: daysOfWeekSelectionDialog.selectedIndexes
+                delegate: name_delegate
+            }
+        }
+
+        //////////////////////////TIMES
+        Switch{
+            id: swUseTime
+            anchors.top: daysOfWeekGrid.bottom
+            anchors.left: parent.left
+            anchors.margins: 5
+            checked: objQSettings.getValue("/rules/" + ruleName + "/Time/enabled",false)
+        }
+        Label{
+            anchors.top: daysOfWeekGrid.bottom
+            anchors.left: swUseTime.right
+            height: swUseTimeNot.height
+            verticalAlignment: Text.AlignVCenter
+            text: "Between these times"
+        }
+        Label{
+            anchors.top: daysOfWeekGrid.bottom
             anchors.right: swUseTimeNot.left
             height: swUseTimeNot.height
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignRight
             text: "NOT"
-            font.pixelSize: 24
-            color: "black"
-
         }
         Switch{
             id: swUseTimeNot
-            anchors.top: txtCalendarKeywords.bottom
+            anchors.top: daysOfWeekGrid.bottom
             anchors.right: parent.right
             anchors.margins: 5
             checked: objQSettings.getValue("/rules/" + ruleName + "/Time/NOT",false)
@@ -440,7 +524,7 @@ Page{
             anchors.top: btnTime1.bottom
             anchors.left: parent.left
             anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/WiFi/enabled",true)
+            checked: objQSettings.getValue("/rules/" + ruleName + "/WiFi/enabled",false)
         }
         Label{
             anchors.top: btnTime1.bottom
@@ -448,7 +532,6 @@ Page{
             height: swUseWIFI.height
             verticalAlignment: Text.AlignVCenter
             text: "Near any of these WiFi"
-            color: "black"
         }
         Label{
             anchors.top: btnTime1.bottom
@@ -457,9 +540,6 @@ Page{
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignRight
             text: "NOT"
-            font.pixelSize: 24
-            color: "black"
-
         }
         Switch{
             id: swUseWIFINot
@@ -536,6 +616,10 @@ Page{
                 if (swUseWIFI.checked && !txtWiFiNetworks.acceptableInput){
                     errorString += "Enter at least one valid SSID or disable that section\n"
                 }
+                if(swDaysOfWeek.checked && !daysOfWeekSelectionDialog.selectedIndexes.length > 0) {
+                    errorString += "Choose at least one day of the week or disable that section\n"
+                }
+
                 if (errorString.length > 1){
                     showError(errorString);
                     return;
@@ -566,29 +650,42 @@ Page{
 
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/enabled",swUseLocation.checked);
                 if (swUseLocation.checked){
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/NOT",swUseLocationNot.checked);
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/RADIUS",cbRadius.value);
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/LATITUDE",txtLocLatitude.text);
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/LONGITUDE",txtLocLongitude.text);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/NOT",swUseLocationNot.checked);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/RADIUS",cbRadius.value);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/LATITUDE",txtLocLatitude.text);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/LONGITUDE",txtLocLongitude.text);
                 }
 
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Time/enabled",swUseTime.checked);
                 if (swUseTime.checked){
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/Time/NOT",swUseTimeNot.checked);
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/Time/TIME1",btnTime1.text + ":00");
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/Time/TIME2",btnTime2.text + ":00");
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Time/NOT",swUseTimeNot.checked);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Time/TIME1",btnTime1.text + ":00");
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Time/TIME2",btnTime2.text + ":00");
                 }
 
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Calendar/enabled",swUseCalendar.checked);
                 if (swUseCalendar.checked){
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/Calendar/NOT",swUseCalendarNOT.checked);
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/Calendar/KEYWORDS",txtCalendarKeywords.text);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Calendar/NOT",swUseCalendarNOT.checked);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Calendar/KEYWORDS",txtCalendarKeywords.text);
+                }
+
+                objQSettings.setValue("/rules/" + txtRuleName.text + "/Calendar/enabled",swUseCalendar.checked);
+                if (swUseCalendar.checked){
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Calendar/NOT",swUseCalendarNOT.checked);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Calendar/KEYWORDS",txtCalendarKeywords.text);
+                }
+
+                objQSettings.setValue("/rules/" + txtRuleName.text + "/DaysOfWeek/enabled",swDaysOfWeek.checked);
+                if (swDaysOfWeek.checked) {
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/DaysOfWeek/NOT",swDaysOfWeekNOT.checked);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/DaysOfWeek/INDEXES",daysOfWeekSelectionDialog.selectedIndexes);
+                    console.log("stored dayofweek indexes: " + daysOfWeekSelectionDialog.selectedIndexes);
                 }
 
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/enabled",swUseWIFI.checked);
                 if (swUseWIFI.checked){
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/NOT",swUseWIFINot.checked);
-                objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/SSIDs",txtWiFiNetworks.text);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/NOT",swUseWIFINot.checked);
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/SSIDs",txtWiFiNetworks.text);
                 }
 
                 objProximusUtils.refreshRulesModel(); //why can't i call the function in settingsPage now??

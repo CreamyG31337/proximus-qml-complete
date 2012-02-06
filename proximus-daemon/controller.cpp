@@ -36,6 +36,7 @@ Controller::Controller(QObject *parent) : QObject(parent)
             connect (calTimer, SIGNAL(timeout()),this,SLOT(updateCalendar()));
             calTimer->start(60*45,60*60); //timer should fire every 45-60 min
             connect (wifiTimer, SIGNAL(timeout()),this,SLOT(requestScan()));//don't start yet
+            connect (&midnightTimer, SIGNAL(timeout()),this,SLOT(itsMidnight()));//don't start yet, started via updatecalendar
         #endif
     #endif
 
@@ -46,8 +47,12 @@ Controller::Controller(QObject *parent) : QObject(parent)
     connect(&waitAndReScanTimer, SIGNAL(timeout()),
             this, SLOT(requestScan()));
 
+    //set correct day of week
+    CurrentDayOfWeek = QDate::currentDate().dayOfWeek(); //1-7; monday = 1, sunday = 7
+    if (CurrentDayOfWeek == 7) CurrentDayOfWeek = 0;
+
     qDebug() << "init complete";
-    didSomething("Proximus Daemon startup complete.");
+    didSomething("Proximus Daemon startup complete.");    
 }
 
 void Controller::startExternalTimer(int min, int max){
@@ -120,6 +125,28 @@ void Controller::didSomething(QString strInfo)
     QDBusInterface remoteApp("net.appcheck.Proximus.UI", "/Proximus/UI",
                              "net.appcheck.Proximus.UI" , QDBusConnection::sessionBus());
     QDBusMessage PossibleError = remoteApp.call("updateLog",strInfo);
+}
+
+void Controller::itsMidnight()
+{
+    //0=sunday;6=saturday
+    if (CurrentDayOfWeek < 6)
+        CurrentDayOfWeek++;
+    else
+        CurrentDayOfWeek = 0;
+
+    foreach(Rule* ruleStruct,  Rules) {
+        if(ruleStruct->enabled && ruleStruct->data.weekdayRule.enabled){
+            if(ruleStruct->data.weekdayRule.daysSelected.toStringList().contains(QString::number(CurrentDayOfWeek))){
+                ruleStruct->data.weekdayRule.activated();
+                didSomething("It's midnight. rule '" + ruleStruct->name + "'' DayOfWeek matched");
+            }
+            else{
+                didSomething("It's midnight. rule " + ruleStruct->name + " dayOfWeek not matched");
+                ruleStruct->data.weekdayRule.deactivated();
+            }
+        }
+    }
 }
 
 
@@ -236,6 +263,15 @@ void Controller::rulesStorageChanged() {
             newRule->data.calendarRule.enabled = settings->value("Calendar/enabled").toBool();
             newRule->data.calendarRule.inverseCond = settings->value("Calendar/NOT").toBool();
             newRule->data.calendarRule.keywords = settings->value("Calendar/KEYWORDS").toString();
+            //DayOfWeek
+            newRule->data.weekdayRule.setParent(newRule);
+            connect(&newRule->data.weekdayRule, SIGNAL(activeChanged(Rule*)),
+                    this, SLOT(checkStatus(Rule*))
+                    );
+            newRule->data.weekdayRule.enabled = settings->value("/DaysOfWeek/enabled",false).toBool();
+            newRule->data.weekdayRule.inverseCond = settings->value("/DaysOfWeek/NOT",false).toBool();
+            newRule->data.weekdayRule.daysSelected = settings->value("/DaysOfWeek/INDEXES");
+
             //WIFI
             newRule->data.wifiRule.active = false;
             newRule->data.wifiRule.setParent(newRule);
@@ -272,6 +308,7 @@ void Controller::rulesStorageChanged() {
 //triggered by a heartbeat timer object every 45 min or so,
 //checks calendar for any keyword matches and sets more timers to change the rule to active when those become current.
 //if this api made any sense, i could use signals too
+//this also checks for upcoming midnight and will setup a timer for that
 void Controller::updateCalendar()
 {//ugh so this thing opens the current users calendar... root / developer = bad      
 //    QOrganizerManager defaultManager(this); //provides access to system address book, calendar
@@ -281,6 +318,19 @@ void Controller::updateCalendar()
    // parameters["filename"] = "/home/user/.calendar/db"; // database??
     //QOrganizerManager userManager("",parameters);
     //get list of all upcoming calendar events
+    if (!midnightTimer.isActive()) //no existing timer
+    {
+        //qint32 secsToMidnight = 10;//FOR TESTING ONLY
+        qint32 secsToMidnight = QTime::currentTime().secsTo(QTime::fromString("23:59:59","hh:mm:ss"));
+        if (secsToMidnight < 3600){ //midnight in next hour
+            midnightTimer.setMinimumInterval(secsToMidnight);
+            midnightTimer.setMaximumInterval(secsToMidnight + 60);
+            midnightTimer.setSingleShot(true);
+            midnightTimer.start();
+            didSomething("It's midnight in " + QString::number(secsToMidnight) + "s");
+        }
+    }
+
     QList<QOrganizerItem> entries =
              defaultManager.items(QDateTime::currentDateTime(),//not sure if this returns events already started
                                   QDateTime::currentDateTime().addSecs(3600)); //read next hour of calendar data
@@ -524,6 +574,17 @@ void Controller::checkStatus(Rule* ruleStruct)
     else
         calendarCond = true;
 
+    QVariant dayOfWeekCond = false;
+    if (ruleStruct->data.weekdayRule.enabled){
+        if(ruleStruct->data.weekdayRule.active)
+            dayOfWeekCond = true;
+        else
+            dayOfWeekCond = false;
+        if(ruleStruct->data.weekdayRule.inverseCond)
+            dayOfWeekCond = !dayOfWeekCond.toBool();
+    }
+
+
     QVariant wifiCond = false;
     if (ruleStruct->data.wifiRule.enabled){
         if (ruleStruct->data.wifiRule.active)
@@ -535,9 +596,9 @@ void Controller::checkStatus(Rule* ruleStruct)
     }
     else
         wifiCond = true;
-    didSomething("Status of '" + ruleStruct->name + "' loc/time/cal/wifi" +" = " + locationCond.toString() + " " + timeCond.toString() + " " + calendarCond.toString() + " "+ wifiCond.toString());
-    qDebug() << "checkStatus() loc/time/cal/wifi " << ruleStruct->name << locationCond << timeCond << calendarCond << wifiCond;
-    bool result = locationCond.toBool() && timeCond.toBool() && calendarCond.toBool() && wifiCond.toBool();
+    didSomething("Status of '" + ruleStruct->name + "' = loc:" + locationCond.toString() + " time:" + timeCond.toString() + " cal:" + calendarCond.toString() + " day:" + dayOfWeekCond.toString() + " wifi:"+ wifiCond.toString());
+    qDebug() << "checkStatus() loc/time/cal/day/wifi " << ruleStruct->name << locationCond << timeCond << calendarCond << dayOfWeekCond << wifiCond;
+    bool result = locationCond.toBool() && timeCond.toBool() && calendarCond.toBool() && dayOfWeekCond.toBool() && wifiCond.toBool();
     ruleStruct->active = result;
 
     if (result)
@@ -653,4 +714,24 @@ DataLocation::~DataLocation()
     {
         delete areaMon;
     }
+}
+
+void DataDayOfWeek::activated()
+{
+    qDebug() << "DayOfWeek activated";
+    if (this->inverseCond == false)
+        this->active = true;
+    else
+        this->active = false;
+    Q_EMIT activeChanged((Rule*)this->parent());
+}
+
+void DataDayOfWeek::deactivated()
+{
+    qDebug() << "DayOfWeek deactivated";
+    if (this->inverseCond == false)
+        this->active = false;
+    else
+        this->active = true;
+    Q_EMIT activeChanged((Rule*)this->parent());
 }

@@ -61,12 +61,10 @@ Page {
                     }
                 }
             }
-            Text{
+            Label{
                 height: swPositioning.height
                 verticalAlignment: Text.AlignVCenter
                 text: "Use Nokia Positioning methods"
-                font.pixelSize: 22
-                color: "black"
             }
         }
         Row{
@@ -88,12 +86,10 @@ Page {
                     }
                 }
             }
-            Text{
+            Label{
                 height: swGPS.height
                 verticalAlignment: Text.AlignVCenter
                 text: "Use GPS"
-                font.pixelSize: 22
-                color: "black"
             }
             Switch{
                 id: swService
@@ -109,12 +105,11 @@ Page {
                     }
                 }
             }
-            Text{
+            Label{
                 height: swGPS.height
                 verticalAlignment: Text.AlignVCenter
                 text: "Enable Service"
                 font.pixelSize: 22
-                color: "black"
             }
         }
 
@@ -132,7 +127,7 @@ Page {
                 anchors.margins: 10
                 width: swGPS.width
             }
-            Text{
+            Label{
                 id: txtGPSUI
                 text: "GPS Update Interval (seconds)"
                 font.pixelSize: 22
@@ -172,7 +167,7 @@ Page {
                 anchors.margins: 10
                 width: swGPS.width
             }
-            Text{
+            Label{
                 id: txtWiFi
                 text: "WiFi Scan Interval (minutes)"
                 font.pixelSize: 22
@@ -293,7 +288,7 @@ Page {
             model: objRulesModel
             height: tabStatus.height - 225
             clip: true
-            delegate:  Text{
+            delegate:  Label{
                 height: 40;
                 font.pixelSize: 25;
                 text: "Rule " + index + " " + model.modelData.name;

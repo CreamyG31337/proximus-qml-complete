@@ -116,6 +116,21 @@ Q_SIGNALS:
     void activeChanged(Rule* ruleStruct);
 };
 
+class DataDayOfWeek : public QObject
+{
+    Q_OBJECT
+public:
+    bool enabled;
+    bool inverseCond;
+    bool active;
+    QVariant daysSelected;
+public Q_SLOTS:
+    void activated();
+    void deactivated();
+Q_SIGNALS:
+    void activeChanged(Rule* ruleStruct);
+};
+
 struct RuleData
 {
     explicit RuleData();
@@ -124,6 +139,7 @@ struct RuleData
     DataTime timeRule;
     DataCalendar calendarRule;
     DataWifi wifiRule;
+    DataDayOfWeek weekdayRule;
 };
 class Rule : public QObject
 {
@@ -173,6 +189,8 @@ private Q_SLOTS:
 
     void didSomething(QString strInfo);
 
+    void itsMidnight();
+
 private:
     QPointer<QGeoSatelliteInfoSource> satelliteInfoSource;
 
@@ -191,6 +209,8 @@ private:
     int pendingScan;
     QSystemAlignedTimer waitAndReScanTimer; //when a scan is aborted because the wifi is busy, wait a bit and retry the scan.    
     QPointer<CalWrapper> myCalWrapper; //I don't trust this thing to clean up when destroyed based on QOrganizerManager leaking like a sieve. Better to just hold onto one ref for now.
+    QSystemAlignedTimer midnightTimer; //goes off at midnight to support the DaysOfWeek rule; started from updateCalen
+    int CurrentDayOfWeek; //0-6; Sunday = 0, Monday = 1, etc
 };
 
 #endif // CONTROLLER_H
