@@ -6,7 +6,12 @@ import net.appcheck.Proximus 1.0
 Page {
     id: tabStatus
     tools: commonTools
+    ScrollDecorator {
+        id: scrolldecorator
+        flickableItem: flickable
+    }
     Flickable{
+        id:flickable
         anchors.fill: parent
         contentHeight: txtLog.height
         //contentWidth: childrenRect.width
@@ -16,6 +21,7 @@ Page {
             id: txtLog
             text: qsTr("Welcome to Proximus")
             anchors {top: parent.top; left: parent.left; right: parent.right;}
+            anchors.rightMargin: 10
             readOnly: true;           
             Connections {
                 target: objProximusLog

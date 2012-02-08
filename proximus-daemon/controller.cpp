@@ -22,6 +22,11 @@ Controller::Controller(QObject *parent) : QObject(parent)
     QCoreApplication::setOrganizationName("FakeCompany");
     QCoreApplication::setOrganizationDomain("appcheck.net");
     QCoreApplication::setApplicationName("Proximus");
+
+    //set correct day of week
+    CurrentDayOfWeek = QDate::currentDate().dayOfWeek(); //1-7; monday = 1, sunday = 7
+    if (CurrentDayOfWeek == 7) CurrentDayOfWeek = 0;
+
     //call once now to populate initial rules
     rulesStorageChanged();
 
@@ -47,11 +52,9 @@ Controller::Controller(QObject *parent) : QObject(parent)
     connect(&waitAndReScanTimer, SIGNAL(timeout()),
             this, SLOT(requestScan()));
 
-    //set correct day of week
-    CurrentDayOfWeek = QDate::currentDate().dayOfWeek(); //1-7; monday = 1, sunday = 7
-    if (CurrentDayOfWeek == 7) CurrentDayOfWeek = 0;
 
-    qDebug() << "init complete";
+
+    qDebug() << "init complete; curr dayOfWeek: " << CurrentDayOfWeek;
     didSomething("Proximus Daemon startup complete.");    
 }
 
@@ -210,8 +213,8 @@ void Controller::rulesStorageChanged() {
             ptrRuleDataLoc->setParent(newRule);
             newRule->data.locationRule = ptrRuleDataLoc;
             ptrRuleDataLoc->active = false;//we can default the status to false, it will be re-evaluated within a minute
-            ptrRuleDataLoc->enabled = settings->value("Location/enabled").toBool();
-            ptrRuleDataLoc->inverseCond = settings->value("Location/NOT").toBool();
+            ptrRuleDataLoc->enabled = settings->value("Location/enabled",false).toBool();
+            ptrRuleDataLoc->inverseCond = settings->value("Location/NOT",false).toBool();
             ptrRuleDataLoc->radius = settings->value("Location/RADIUS").toInt();
             ptrRuleDataLoc->location.setLongitude(settings->value("Location/LONGITUDE").toDouble());
             ptrRuleDataLoc->location.setLatitude(settings->value("Location/LATITUDE").toDouble());
@@ -221,8 +224,8 @@ void Controller::rulesStorageChanged() {
             }
             newRule->data.timeRule.setParent(newRule);
             newRule->data.timeRule.active = false;
-            newRule->data.timeRule.enabled = settings->value("Time/enabled").toBool();
-            newRule->data.timeRule.inverseCond = settings->value("Time/NOT").toBool();
+            newRule->data.timeRule.enabled = settings->value("Time/enabled",false).toBool();
+            newRule->data.timeRule.inverseCond = settings->value("Time/NOT",false).toBool();
             newRule->data.timeRule.time1 = settings->value("Time/TIME1").toTime();
             newRule->data.timeRule.time2 = settings->value("Time/TIME2").toTime();
             qDebug() << "time1/time2" << newRule->data.timeRule.time1 << newRule->data.timeRule.time2 ;
@@ -245,7 +248,8 @@ void Controller::rulesStorageChanged() {
                 newRule->data.timeRule.deactivateTimer.setSingleShot(true);
                 //ui->txtLog->appendPlainText("timer to deactivate rule set for " + QString::number(endTimeDiff) + "s");
                 if (endTimeDiff < startTimeDiff)//means we are activated right now
-                    newRule->data.timeRule.activated();
+                    //newRule->data.timeRule.activated();//defer this
+                    newRule->data.timeRule.active = true;
                 else {
                     newRule->data.timeRule.activateTimer.start(startTimeDiff * 1000);//convert to ms
                     newRule->data.timeRule.activateTimer.setSingleShot(true);
@@ -253,24 +257,31 @@ void Controller::rulesStorageChanged() {
                     if (newRule->data.timeRule.inverseCond == true) {//need to set directly
                         qDebug() << "time inverse - should be set active";
                         //newRule->data.timeRule.active = true;
-                        checkStatus(newRule);
+                        //checkStatus(newRule); //defer this
                     }
                 }
             }
 
             newRule->data.calendarRule.setParent(newRule);
             newRule->data.calendarRule.active = false;
-            newRule->data.calendarRule.enabled = settings->value("Calendar/enabled").toBool();
-            newRule->data.calendarRule.inverseCond = settings->value("Calendar/NOT").toBool();
+            newRule->data.calendarRule.enabled = settings->value("Calendar/enabled",false).toBool();
+            newRule->data.calendarRule.inverseCond = settings->value("Calendar/NOT",false).toBool();
             newRule->data.calendarRule.keywords = settings->value("Calendar/KEYWORDS").toString();
             //DayOfWeek
             newRule->data.weekdayRule.setParent(newRule);
             connect(&newRule->data.weekdayRule, SIGNAL(activeChanged(Rule*)),
                     this, SLOT(checkStatus(Rule*))
                     );
-            newRule->data.weekdayRule.enabled = settings->value("/DaysOfWeek/enabled",false).toBool();
-            newRule->data.weekdayRule.inverseCond = settings->value("/DaysOfWeek/NOT",false).toBool();
-            newRule->data.weekdayRule.daysSelected = settings->value("/DaysOfWeek/INDEXES");
+            newRule->data.weekdayRule.enabled = settings->value("DaysOfWeek/enabled",false).toBool();
+            newRule->data.weekdayRule.inverseCond = settings->value("DaysOfWeek/NOT",false).toBool();
+            newRule->data.weekdayRule.daysSelected = settings->value("DaysOfWeek/INDEXES");
+            //set to active now if it should be because this stuff is only rechecked at midnight
+             if(newRule->data.weekdayRule.daysSelected.toStringList().contains(QString::number(CurrentDayOfWeek))){
+                 newRule->data.weekdayRule.active = true;
+             }
+             else{
+                 newRule->data.weekdayRule.active = false;
+             }
 
             //WIFI
             newRule->data.wifiRule.active = false;
@@ -583,7 +594,8 @@ void Controller::checkStatus(Rule* ruleStruct)
         if(ruleStruct->data.weekdayRule.inverseCond)
             dayOfWeekCond = !dayOfWeekCond.toBool();
     }
-
+    else
+        dayOfWeekCond = true;
 
     QVariant wifiCond = false;
     if (ruleStruct->data.wifiRule.enabled){
@@ -597,7 +609,7 @@ void Controller::checkStatus(Rule* ruleStruct)
     else
         wifiCond = true;
     didSomething("Status of '" + ruleStruct->name + "' = loc:" + locationCond.toString() + " time:" + timeCond.toString() + " cal:" + calendarCond.toString() + " day:" + dayOfWeekCond.toString() + " wifi:"+ wifiCond.toString());
-    qDebug() << "checkStatus() loc/time/cal/day/wifi " << ruleStruct->name << locationCond << timeCond << calendarCond << dayOfWeekCond << wifiCond;
+    qDebug() << "Status of " << ruleStruct->name << "= loc:" << locationCond.toString() << " time:" << timeCond.toString() << " cal:" << calendarCond.toString() << " day:" << dayOfWeekCond.toString() << " wifi:" << wifiCond.toString();
     bool result = locationCond.toBool() && timeCond.toBool() && calendarCond.toBool() && dayOfWeekCond.toBool() && wifiCond.toBool();
     ruleStruct->active = result;
 

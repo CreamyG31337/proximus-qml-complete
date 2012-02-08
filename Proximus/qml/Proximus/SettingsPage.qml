@@ -39,7 +39,12 @@ Page {
         z: 99
         topMargin: parent.height - 100 //show at bottom instead
     }
+    ScrollDecorator {
+        id: scrolldecorator
+        flickableItem: flickable
+    }
     Flickable{
+        id: flickable
         anchors.fill: parent
         contentHeight: 800
         Row{
@@ -283,6 +288,10 @@ Page {
             style: NegativeButtonStyle{}
         }
 
+        ScrollDecorator {
+            id: scrolldecorator2
+            flickableItem: rulesList
+        }
         ListView{
             id: rulesList
             model: objRulesModel

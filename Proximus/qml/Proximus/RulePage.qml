@@ -6,7 +6,10 @@ Page{
     //tools: commonTools
     id: rulePage
     property string ruleName: "InvalidRuleName"
-    anchors.margins: 7
+    anchors.topMargin: 5
+    anchors.bottomMargin: 5
+    anchors.leftMargin: 2
+    anchors.rightMargin: 12
 
     function setCoord(latitude, longitude)
     {
@@ -46,10 +49,15 @@ Page{
         id: errorMessageBanner
         z: 99
     }
+    ScrollDecorator {
+        id: scrolldecorator
+        flickableItem: flickable
+    }
 
     Flickable{
+    id: flickable
     anchors.fill: parent
-    contentHeight: 950
+    contentHeight: 1075
     //contentHeight: childrenRect.height
         TextField{
             anchors.top: parent.top
@@ -71,500 +79,587 @@ Page{
         }
 
 ////////////////////////ACTIONS
-        Label{
-            id: lblActionHeader
-            text: "Action to take"
-            anchors.top:  txtRuleName.bottom
-            height: 20
-            visible: false
-        }
-        Switch{
-            anchors.top: lblActionHeader.bottom
-            id: swChangeProfile
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/Profile/enabled",false)
-        }
-        Label{
-            anchors.margins: 7
-            id: lblSwProfile
-            anchors.top: lblActionHeader.bottom
-            anchors.left: swChangeProfile.right
-            height: swUseLocation.height
-            verticalAlignment: Text.AlignVCenter
-            text: "Switch Profile "
-        }
-        TumblerButton12{
-            id: btnChooseProfile
-            anchors.left: lblSwProfile.right
-            anchors.verticalCenter: lblSwProfile.verticalCenter
-            text: objQSettings.getValue("/rules/" + ruleName + "/Actions/Profile/NAME","choose")
-            onClicked: tDialog.open();
-            enabled: swChangeProfile.checked
-        }
-        TumblerDialog12{
-            id: tDialog
-            titleText: "Select Profile"
-            columns: [ profileColumn ]
-            acceptButtonText: "Ok"
-            onAccepted: btnChooseProfile.text = profileColumn.items[profileColumn.selectedIndex]; //thanks for depricating label...
-        }
-        TumblerColumn12{
-            id: profileColumn
-            items: objProfileClient.profileTypes()
-        }
-        Switch{
-            anchors.top: swChangeProfile.bottom
-            id: swCreateReminder
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/Reminder/enabled",false)
-        }
-        Label{
-            anchors.margins: 7
-            anchors.top: swChangeProfile.bottom
-            anchors.left: swCreateReminder.right
-            height: swCreateReminder.height
-            verticalAlignment: Text.AlignVCenter
-            text: "Create Reminder "
-        }
-        TextField{
-            id: txtReminderText
-            width: parent.width - 20
-            height: 45
-            anchors.top: swCreateReminder.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: objQSettings.getValue("/rules/" + ruleName + "/Actions/Reminder/TEXT","")
-            placeholderText: "enter reminder message"
-            font.pixelSize: 26
-            validator: RegExpValidator{regExp: /(\w+ *)+/}
-            maximumLength: 255
-            enabled: swCreateReminder.checked
-        }
+        Rectangle{
+            id: recActions
+            color: "transparent"
+            height: 175
+            width: parent.width
+            anchors.top: txtRuleName.bottom
+            border.width: 2
+            border.color: "steelblue"
+            radius: 10
+            anchors.margins: 5
 
+            Label{
+                id: lblActionHeader
+                text: "Actions"
+                font.italic: true
+                font.bold: true
+                anchors.top: parent.top //txtRuleName.bottom
+                anchors.margins: 5
+                anchors.left: parent.left
+            }
+            Switch{
+                anchors.top: lblActionHeader.bottom
+                anchors.margins: 5
+                anchors.left: parent.left
+                id: swChangeProfile
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/Profile/enabled",false)
+            }
+            Label{
+                anchors.margins: 7
+                id: lblSwProfile
+                anchors.verticalCenter: swChangeProfile.verticalCenter
+                anchors.left: swChangeProfile.right
+                height: swUseLocation.height
+                verticalAlignment: Text.AlignVCenter
+                text: "Switch Profile "
+            }
+            TumblerButton12{
+                id: btnChooseProfile
+                anchors.left: lblSwProfile.right
+                anchors.verticalCenter: lblSwProfile.verticalCenter
+                text: objQSettings.getValue("/rules/" + ruleName + "/Actions/Profile/NAME","choose")
+                onClicked: tDialog.open();
+                enabled: swChangeProfile.checked
+            }
+            TumblerDialog12{
+                id: tDialog
+                titleText: "Select Profile"
+                columns: [ profileColumn ]
+                acceptButtonText: "Ok"
+                onAccepted: btnChooseProfile.text = profileColumn.items[profileColumn.selectedIndex]; //thanks for depricating label...
+            }
+            TumblerColumn12{
+                id: profileColumn
+                items: objProfileClient.profileTypes()
+            }
+            Switch{
+                anchors.top: swChangeProfile.bottom
+                anchors.margins: 5
+                anchors.left: parent.left
+                id: swCreateReminder
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/Reminder/enabled",false)
+            }
+        /////////////CREATE REMINDER
+            Label{
+                anchors.margins: 7
+                anchors.top: swChangeProfile.bottom
+                anchors.left: swCreateReminder.right
+                height: swCreateReminder.height
+                verticalAlignment: Text.AlignVCenter
+                text: "Create Reminder "
+            }
+            TextField{
+                id: txtReminderText
+                width: rulePage.width - 20
+                height: 45
+                anchors.top: swCreateReminder.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: objQSettings.getValue("/rules/" + ruleName + "/Actions/Reminder/TEXT","")
+                placeholderText: "enter reminder message"
+                font.pixelSize: 26
+                validator: RegExpValidator{regExp: /(\w+ *)+/}
+                maximumLength: 255
+                enabled: swCreateReminder.checked
+            }
+        }
 //////////////////RULES
         Label{
             id: lblActivationHeader
-            text: "When..."
-            anchors.top: txtReminderText.bottom
+            text: "Trigger When"
+            font.italic: true
+            font.bold: true
+            anchors.top: recActions.bottom//txtReminderText.bottom
             anchors.margins: 5
-            height: 20
         }
 //////////////////LOCATION
-        Switch{
+        Rectangle{
+            id: recLocation
+            color: "transparent"
+            height: 220
+            width: parent.width
             anchors.top: lblActivationHeader.bottom
+            border.width: 2
+            border.color: "steelblue"
+            radius: 10
             anchors.margins: 5
-            id: swUseLocation
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Location/enabled",false)
-        }
-        Label{
-            anchors.top: lblActivationHeader.bottom
-            anchors.left: swUseLocation.right
-            height: swUseLocation.height
-            verticalAlignment: Text.AlignVCenter
-            text: "Location match"
-        }
-        Label{
-            anchors.top: lblActivationHeader.bottom
-            anchors.right: swUseLocationNot.left
-            height: swUseLocation.height
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignRight
-            text: "NOT"
-        }
-        Switch{
-            id: swUseLocationNot
-            anchors.top: lblActivationHeader.bottom
-            anchors.right: parent.right
-            anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Location/NOT",false)
-            enabled: swUseLocation.checked
-        }
-
-        Label {
-            anchors.top: swUseLocation.bottom
-            id: lblLocationRadius
-            height: 45
-            verticalAlignment: Text.AlignVCenter
-            text: "Radius (m): "
-        }
-        CountBubble{
-            id: cbRadius
-            anchors.verticalCenter: lblLocationRadius.verticalCenter
-            anchors.left: lblLocationRadius.right
-            value: radiusSlider.value
-            largeSized: true
-            onValueChanged: {
-                if (cbRadius.value == radiusSlider.maximumValue && radiusSlider.pressed){
-                    radiusSlider.enabled = false
-                    showError("Increasing max range...\nClick somewhere in the middle if you want to adjust it further")
-                    radiusSlider.maximumValue = radiusSlider.maximumValue * 10
-                    radiusSlider.stepSize = radiusSlider.stepSize * 10
-                    sliderTimer.start()
-
-                }
-                if (cbRadius.value == 0 && radiusSlider.stepSize >= 10 && radiusSlider.pressed){ //don't need fractions
-                    radiusSlider.enabled = false
-                    showError("Decreasing max range...\nClick somewhere in the middle if you want to adjust it further")
-                    radiusSlider.maximumValue = radiusSlider.maximumValue / 10
-                    radiusSlider.stepSize = radiusSlider.stepSize / 10
-                    sliderTimer.start()
-                }
+            Switch{
+                anchors.top: parent.top
+                anchors.margins: 5
+                anchors.left: parent.left
+                id: swUseLocation
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Location/enabled",false)
             }
-        }
-        Slider{
-            id: radiusSlider
-            width: parent.width - lblLocationRadius.width - cbRadius.width
-            anchors.verticalCenter: lblLocationRadius.verticalCenter
-            anchors.left: cbRadius.right
-            anchors.margins: 5
-            value: objQSettings.getValue("/rules/" + ruleName + "/Location/RADIUS",100)
-            stepSize: 10
-            maximumValue: 2000
-            enabled: swUseLocation.checked
-            Component.onCompleted: {
-                if (value > maximumValue)
-                {
-                    while (value > maximumValue)
-                    {
-                        maximumValue = maximumValue * 10
-                        stepSize = stepSize * 10
+            Label{
+                anchors.top: parent.top
+                anchors.left: swUseLocation.right
+                anchors.margins: 5
+                height: swUseLocation.height
+                verticalAlignment: Text.AlignVCenter
+                text: "Location match"
+            }
+            Label{
+                anchors.top: parent.top
+                anchors.right: swUseLocationNot.left
+                anchors.margins: 5
+                height: swUseLocation.height
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignRight
+                text: "NOT"
+            }
+            Switch{
+                id: swUseLocationNot
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Location/NOT",false)
+                enabled: swUseLocation.checked
+            }
+
+            Label {
+                anchors.top: swUseLocation.bottom
+                anchors.left: parent.left
+                anchors.margins: 5
+                id: lblLocationRadius
+                height: 45
+                verticalAlignment: Text.AlignVCenter
+                text: "Radius (m):"
+            }
+            CountBubble{
+                id: cbRadius
+                anchors.verticalCenter: lblLocationRadius.verticalCenter
+                anchors.left: lblLocationRadius.right
+                anchors.margins: 5
+                value: radiusSlider.value
+                largeSized: true
+                onValueChanged: {
+                    if (cbRadius.value == radiusSlider.maximumValue && radiusSlider.pressed){
+                        radiusSlider.enabled = false
+                        showError("Increasing max range...\nClick somewhere in the middle if you want to adjust it further")
+                        radiusSlider.maximumValue = radiusSlider.maximumValue * 10
+                        radiusSlider.stepSize = radiusSlider.stepSize * 10
+                        sliderTimer.start()
+
+                    }
+                    if (cbRadius.value == 0 && radiusSlider.stepSize >= 10 && radiusSlider.pressed){ //don't need fractions
+                        radiusSlider.enabled = false
+                        showError("Decreasing max range...\nClick somewhere in the middle if you want to adjust it further")
+                        radiusSlider.maximumValue = radiusSlider.maximumValue / 10
+                        radiusSlider.stepSize = radiusSlider.stepSize / 10
+                        sliderTimer.start()
                     }
                 }
             }
-        }
-        Label {
-            height: 45
-            verticalAlignment: Text.AlignVCenter
-            anchors.top: radiusSlider.bottom
-            id: lblLocationLatitude
-            text: "Latitude: "
-        }
-
-        TextField{
-            id: txtLocLatitude
-            anchors.top: radiusSlider.bottom
-            anchors.left: txtLocLongitude.left
-            width: 180
-            height: 45
-            text: objQSettings.getValue("/rules/" + ruleName + "/Location/LATITUDE",0)
-            font.pixelSize: 21
-            validator: DoubleValidator{}
-            maximumLength: 13
-            placeholderText: "click this >>"
-            enabled: swUseLocation.checked
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-        }
-        Label {
-            anchors.top: txtLocLatitude.bottom
-            height: 45
-            verticalAlignment: Text.AlignVCenter
-            id: lblLocationLongitude
-            text: "Longitude: "
-        }
-        TextField{
-            id: txtLocLongitude
-            anchors.top: txtLocLatitude.bottom
-            anchors.left: lblLocationLongitude.right
-            anchors.margins: 5
-            width: 180
-            height: 45
-            text: objQSettings.getValue("/rules/" + ruleName + "/Location/LONGITUDE",0)
-            font.pixelSize: 21
-            validator: DoubleValidator{}
-            maximumLength: 13
-            placeholderText: "click this >>"
-            enabled: swUseLocation.checked
-            inputMethodHints: Qt.ImhFormattedNumbersOnly
-        }
-
-        Button{
-            id: btnFillFromMap
-            anchors {
-                right: parent.right
-                top: txtLocLatitude.top
-                margins: 5
+            Slider{
+                id: radiusSlider
+                width: parent.width - lblLocationRadius.width - cbRadius.width
+                anchors.verticalCenter: lblLocationRadius.verticalCenter
+                anchors.left: cbRadius.right
+                anchors.margins: 5
+                value: objQSettings.getValue("/rules/" + ruleName + "/Location/RADIUS",100)
+                stepSize: 10
+                maximumValue: 2000
+                enabled: swUseLocation.checked
+                Component.onCompleted: {
+                    if (value > maximumValue)
+                    {
+                        while (value > maximumValue)
+                        {
+                            maximumValue = maximumValue * 10
+                            stepSize = stepSize * 10
+                        }
+                    }
+                }
             }
-            width: 150
-            height: 45*2
-            text: qsTr("Fill From\nMap")
-            //onClicked: appWindow.pageStack.push(mapPage)
-            //doing this way everywhere seems dumb because everything is created too early,
-            //gps activates when u launch the app. but it still does that.
-            onClicked: {                
-                if (cbRadius.value < 10) cbRadius.value = 10;//not much point trying to choose a 0 radius
-                appWindow.pageStack.push(Qt.resolvedUrl("MapPage.qml"),
-                                         {longitudeReq: txtLocLongitude.text, latitudeReq: txtLocLatitude.text,
-                                             radiusSize: cbRadius.value} );
+            Label {
+                height: 45
+                verticalAlignment: Text.AlignVCenter
+                anchors.top: radiusSlider.bottom
+                anchors.margins: 5
+                anchors.left: parent.left
+                id: lblLocationLatitude
+                text: "Latitude: "
             }
-            style: PositiveButtonStyle {}
-            enabled: swUseLocation.checked
+
+            TextField{
+                id: txtLocLatitude
+                anchors.top: radiusSlider.bottom
+                anchors.left: txtLocLongitude.left
+                anchors.margins: 5
+                width: 180
+                height: 45
+                text: objQSettings.getValue("/rules/" + ruleName + "/Location/LATITUDE",0)
+                font.pixelSize: 21
+                validator: DoubleValidator{}
+                maximumLength: 13
+                placeholderText: "click this >>"
+                enabled: swUseLocation.checked
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+            }
+            Label {
+                anchors.top: txtLocLatitude.bottom
+                anchors.margins: 5
+                anchors.left: parent.left
+                height: 45
+                verticalAlignment: Text.AlignVCenter
+                id: lblLocationLongitude
+                text: "Longitude: "
+            }
+            TextField{
+                id: txtLocLongitude
+                anchors.top: txtLocLatitude.bottom
+                anchors.left: lblLocationLongitude.right
+                anchors.margins: 5
+                width: 180
+                height: 45
+                text: objQSettings.getValue("/rules/" + ruleName + "/Location/LONGITUDE",0)
+                font.pixelSize: 21
+                validator: DoubleValidator{}
+                maximumLength: 13
+                placeholderText: "click this >>"
+                enabled: swUseLocation.checked
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+            }
+
+            Button{
+                id: btnFillFromMap
+                anchors {
+                    right: parent.right
+                    top: txtLocLatitude.top
+                    margins: 5
+                }
+                width: 150
+                height: 45*2
+                text: qsTr("Fill From\nMap")
+                //onClicked: appWindow.pageStack.push(mapPage)
+                //doing this way everywhere seems dumb because everything is created too early,
+                //gps activates when u launch the app. but it still does that.
+                onClicked: {
+                    if (cbRadius.value < 10) cbRadius.value = 10;//not much point trying to choose a 0 radius
+                    appWindow.pageStack.push(Qt.resolvedUrl("MapPage.qml"),
+                                             {longitudeReq: txtLocLongitude.text, latitudeReq: txtLocLatitude.text,
+                                                 radiusSize: cbRadius.value} );
+                }
+                style: PositiveButtonStyle {}
+                enabled: swUseLocation.checked
+            }
         }
         /////////////////////////CALENDAR
-
-        Switch{
-            id: swUseCalendar
-            anchors.top: btnFillFromMap.bottom
-            anchors.left: parent.left
+        Rectangle{
+            id: recCalendar
+            color: "transparent"
+            height: 110
+            width: parent.width
+            anchors.top: recLocation.bottom
+            border.width: 2
+            border.color: "steelblue"
+            radius: 10
             anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Calendar/enabled",false)
-        }
-        Label{
-            anchors.top: btnFillFromMap.bottom
-            anchors.left: swUseCalendar.right
-            height: swUseCalendar.height
-            verticalAlignment: Text.AlignVCenter
-            text: "Calendar keyword match"
-        }
-        Label{
-            height: swUseCalendar.height
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignRight
-            text: "NOT"
-            anchors.right: swUseCalendarNOT.left
-            anchors.top: btnFillFromMap.bottom
-        }
-        Switch{
-            id: swUseCalendarNOT
-            anchors.right: parent.right
-            anchors.top: btnFillFromMap.bottom
-            anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Calendar/NOT",false)
-            enabled: swUseCalendar.checked
-        }
-        TextField{
-            id: txtCalendarKeywords
-            width: parent.width - 20
-            height: 45
-            anchors.top: swUseCalendarNOT.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: objQSettings.getValue("/rules/" + ruleName + "/Calendar/KEYWORDS","")
-            placeholderText: "enter keywords seperated by spaces"
-            font.pixelSize: 26
-            validator: RegExpValidator{regExp: /(\w+ *)+/}
-            maximumLength: 255
-            enabled: swUseCalendar.checked
+            Switch{
+                id: swUseCalendar
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Calendar/enabled",false)
+            }
+            Label{
+                anchors.top: parent.top
+                anchors.left: swUseCalendar.right
+                anchors.margins: 5
+                height: swUseCalendar.height
+                verticalAlignment: Text.AlignVCenter
+                text: "Calendar keyword match"
+                font.pixelSize: 20
+            }
+            Label{
+                height: swUseCalendar.height
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignRight
+                text: "NOT"
+                anchors.right: swUseCalendarNOT.left
+                anchors.top: parent.top
+                anchors.margins: 5
+            }
+            Switch{
+                id: swUseCalendarNOT
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Calendar/NOT",false)
+                enabled: swUseCalendar.checked
+            }
+            TextField{
+                id: txtCalendarKeywords
+                width: parent.width - 20
+                height: 45
+                anchors.top: swUseCalendarNOT.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.margins: 5
+                text: objQSettings.getValue("/rules/" + ruleName + "/Calendar/KEYWORDS","")
+                placeholderText: "enter keywords seperated by spaces"
+                font.pixelSize: 26
+                validator: RegExpValidator{regExp: /(\w+ *)+/}
+                maximumLength: 255
+                enabled: swUseCalendar.checked
+            }
         }
         ////////////////Days of week
-        Switch{
-            id: swDaysOfWeek
-            anchors.top: txtCalendarKeywords.bottom
-            anchors.left: parent.left
+        Rectangle{
+            id: recDaysOfWeek
+            color: "transparent"
+            height: 175
+            width: parent.width
+            anchors.top: recCalendar.bottom
+            border.width: 2
+            border.color: "steelblue"
+            radius: 10
             anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/DaysOfWeek/enabled",false)
-        }
-        Label{
-            anchors.top: txtCalendarKeywords.bottom
-            anchors.left: swUseTime.right
-            height: swDaysOfWeekNOT.height
-            verticalAlignment: Text.AlignVCenter
-            text: "On these days"
-        }
-        Label{
-            anchors.top: txtCalendarKeywords.bottom
-            anchors.right: swDaysOfWeekNOT.left
-            height: swDaysOfWeekNOT.height
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignRight
-            text: "NOT"
-        }
-        Switch{
-            id: swDaysOfWeekNOT
-            anchors.top: txtCalendarKeywords.bottom
-            anchors.right: parent.right
-            anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/DaysOfWeek/NOT",false)
-            enabled: swUseTime.checked
-        }
-        Button{
-            id: btnSelectDausOfWeek
-            anchors.top: swDaysOfWeek.bottom
-            anchors.margins: 5
-            text:"Choose Days"
-            onClicked: daysOfWeekSelectionDialog.open();
-
-        }
-
-        MultiSelectionDialog {
-            id: daysOfWeekSelectionDialog
-            titleText: "Choose Days"
-            acceptButtonText: "OK"
-            selectedIndexes: objQSettings.getValue("/rules/" + ruleName + "/DaysOfWeek/INDEXES",[]);
-            model: ListModel{
-                ListElement { name: "Sunday" }
-                ListElement { name: "Monday" }
-                ListElement { name: "Tuesday" }
-                ListElement { name: "Wednesday" }
-                ListElement { name: "Thursday" }
-                ListElement { name: "Friday" }
-                ListElement { name: "Saturday" }
+            Switch{
+                id: swDaysOfWeek
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/DaysOfWeek/enabled",false)
             }
-
-        }
-
-        Grid{
-            id: daysOfWeekGrid
-            anchors.top: btnSelectDausOfWeek.bottom
-            anchors.margins: 5
-                columns: screen.orientation == Screen.Landscape || screen.orientation == Screen.LandscapeInverted ? 8 : 4
-            Component{
-                id: name_delegate
-                Rectangle{
-                    width: 100
-                    height: 30
-                    color: "lightgray"
-                    Label{
-                        anchors.centerIn: parent
-                        text: daysOfWeekSelectionDialog.model.get(daysOfWeekSelectionDialog.selectedIndexes[index]).name
-                        font.pixelSize: 15
-                        font.bold: true
+            Label{
+                anchors.top: parent.top
+                anchors.left: swDaysOfWeek.right
+                anchors.margins: 5
+                height: swDaysOfWeekNOT.height
+                verticalAlignment: Text.AlignVCenter
+                text: "On these days"
+            }
+            Label{
+                anchors.top: parent.top
+                anchors.right: swDaysOfWeekNOT.left
+                anchors.margins: 5
+                height: swDaysOfWeekNOT.height
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignRight
+                text: "NOT"
+            }
+            Switch{
+                id: swDaysOfWeekNOT
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/DaysOfWeek/NOT",false)
+                enabled: swDaysOfWeek.checked
+            }
+            Button{
+                id: btnSelectDausOfWeek
+                anchors.top: swDaysOfWeek.bottom
+                anchors.margins: 5
+                anchors.horizontalCenter: parent.horizontalCenter
+                text:"Choose Days"
+                onClicked: daysOfWeekSelectionDialog.open();
+            }
+            MultiSelectionDialog {
+                id: daysOfWeekSelectionDialog
+                titleText: "Choose Days"
+                acceptButtonText: "OK"
+                selectedIndexes: objQSettings.getValue("/rules/" + ruleName + "/DaysOfWeek/INDEXES",[]);
+                model: ListModel{
+                    ListElement { name: "Sunday" }
+                    ListElement { name: "Monday" }
+                    ListElement { name: "Tuesday" }
+                    ListElement { name: "Wednesday" }
+                    ListElement { name: "Thursday" }
+                    ListElement { name: "Friday" }
+                    ListElement { name: "Saturday" }
+                }
+            }
+            Grid{
+                id: daysOfWeekGrid
+                anchors.top: btnSelectDausOfWeek.bottom
+                anchors.margins: 5
+                anchors.left: parent.left
+                    columns: screen.orientation == Screen.Landscape || screen.orientation == Screen.LandscapeInverted ? 8 : 4
+                Component{
+                    id: name_delegate
+                    Rectangle{
+                        width: 100
+                        height: 30
+                        color: "lightgray"
+                        Label{
+                            anchors.centerIn: parent
+                            text: daysOfWeekSelectionDialog.model.get(daysOfWeekSelectionDialog.selectedIndexes[index]).name
+                            font.pixelSize: 15
+                            font.bold: true
+                        }
                     }
                 }
-            }
-            Rectangle {
-                width: 100
-                height: 30
-                color: "white"
-                Label{
-                    y: 10
-                    anchors.centerIn: parent
-                    text: "Selected:"
-                    font.pixelSize: 15
-                    font.bold: true
-                    color: "black"
+                Rectangle {
+                    width: 100
+                    height: 30
+                    color: "white"
+                    Label{
+                        y: 10
+                        anchors.centerIn: parent
+                        text: "Selected:"
+                        font.pixelSize: 15
+                        font.bold: true
+                        color: "black"
+                    }
                 }
-
-            }
-            Repeater{
-                model: daysOfWeekSelectionDialog.selectedIndexes
-                delegate: name_delegate
+                Repeater{
+                    model: daysOfWeekSelectionDialog.selectedIndexes
+                    delegate: name_delegate
+                }
             }
         }
 
         //////////////////////////TIMES
-        Switch{
-            id: swUseTime
-            anchors.top: daysOfWeekGrid.bottom
-            anchors.left: parent.left
+        Rectangle{
+            id: recTimes
+            color: "transparent"
+            height: 113
+            width: parent.width
+            anchors.top: recDaysOfWeek.bottom
+            border.width: 2
+            border.color: "steelblue"
+            radius: 10
             anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Time/enabled",false)
-        }
-        Label{
-            anchors.top: daysOfWeekGrid.bottom
-            anchors.left: swUseTime.right
-            height: swUseTimeNot.height
-            verticalAlignment: Text.AlignVCenter
-            text: "Between these times"
-        }
-        Label{
-            anchors.top: daysOfWeekGrid.bottom
-            anchors.right: swUseTimeNot.left
-            height: swUseTimeNot.height
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignRight
-            text: "NOT"
-        }
-        Switch{
-            id: swUseTimeNot
-            anchors.top: daysOfWeekGrid.bottom
-            anchors.right: parent.right
-            anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/Time/NOT",false)
-            enabled: swUseTime.checked
-        }
-        TumblerButton{
-            id: btnTime1
-            anchors {
-                left: parent.left
-                top: swUseTimeNot.bottom
-                margins: 5
+            Switch{
+                id: swUseTime
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Time/enabled",false)
             }
-            width: 225
-            text: objQSettings.getValue("/rules/" + ruleName + "/Time/TIME1","?").slice(0,5)
-            onClicked: {
-                var _hours = 0
-                var _minutes = 0
-                if (btnTime1.text != "?"){
-                    var time = btnTime1.text.match(/(\d\d):(\d\d)/);
-                    _hours = (time[1]); // parseint doesn't like eights and nines?? the hell?
-                    _minutes = (time[2]);
+            Label{
+                anchors.top: parent.top
+                anchors.left: swUseTime.right
+                anchors.margins: 5
+                height: swUseTimeNot.height
+                verticalAlignment: Text.AlignVCenter
+                text: "Between these times"
+            }
+            Label{
+                anchors.top: parent.top
+                anchors.right: swUseTimeNot.left
+                anchors.margins: 5
+                height: swUseTimeNot.height
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignRight
+                text: "NOT"
+            }
+            Switch{
+                id: swUseTimeNot
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Time/NOT",false)
+                enabled: swUseTime.checked
+            }
+            TumblerButton{
+                id: btnTime1
+                anchors {
+                    left: parent.left
+                    top: swUseTimeNot.bottom
+                    margins: 5
                 }
-                appWindow.pageStack.push(Qt.resolvedUrl("TimePicker.qml"),
-                  {time: 1, hours: _hours , minutes: _minutes } );                
+                width: 225
+                text: objQSettings.getValue("/rules/" + ruleName + "/Time/TIME1","?").slice(0,5)
+                onClicked: {
+                    var _hours = 0
+                    var _minutes = 0
+                    if (btnTime1.text != "?"){
+                        var time = btnTime1.text.match(/(\d\d):(\d\d)/);
+                        _hours = (time[1]); // parseint doesn't like eights and nines?? the hell?
+                        _minutes = (time[2]);
+                    }
+                    appWindow.pageStack.push(Qt.resolvedUrl("TimePicker.qml"),
+                      {time: 1, hours: _hours , minutes: _minutes } );
 
-            }
-            style: TumblerButtonStyle {}
-            enabled: swUseTime.checked
-        }
-        TumblerButton{
-            id: btnTime2
-            anchors {
-                left: btnTime1.right
-                top: swUseTimeNot.bottom
-                margins: 5
-            }
-            width: 225
-            text: objQSettings.getValue("/rules/" + ruleName + "/Time/TIME2","?").slice(0,5)
-            onClicked: {
-                var _hours = 0
-                var _minutes = 0
-                if (btnTime2.text != "?"){
-                    var time = btnTime2.text.match(/(\d\d):(\d\d)/);
-                    _hours = (time[1]);
-                    _minutes = (time[2]);
                 }
-                appWindow.pageStack.push(Qt.resolvedUrl("TimePicker.qml"),
-                  {time: 2, hours: _hours , minutes: _minutes } );
-
+                style: TumblerButtonStyle {}
+                enabled: swUseTime.checked
             }
-            enabled: swUseTime.checked
+            TumblerButton{
+                id: btnTime2
+                anchors {
+                    left: btnTime1.right
+                    top: swUseTimeNot.bottom
+                    margins: 5
+                }
+                width: 225
+                text: objQSettings.getValue("/rules/" + ruleName + "/Time/TIME2","?").slice(0,5)
+                onClicked: {
+                    var _hours = 0
+                    var _minutes = 0
+                    if (btnTime2.text != "?"){
+                        var time = btnTime2.text.match(/(\d\d):(\d\d)/);
+                        _hours = (time[1]);
+                        _minutes = (time[2]);
+                    }
+                    appWindow.pageStack.push(Qt.resolvedUrl("TimePicker.qml"),
+                      {time: 2, hours: _hours , minutes: _minutes } );
+
+                }
+                enabled: swUseTime.checked
+            }
         }
 
         /////////////////////NEAR WIFI
-
-
-        Switch{
-            id: swUseWIFI
-            anchors.top: btnTime1.bottom
-            anchors.left: parent.left
+        Rectangle{
+            id: recWiFi
+            color: "transparent"
+            height: 110
+            width: parent.width
+            anchors.top: recTimes.bottom
+            border.width: 2
+            border.color: "steelblue"
+            radius: 10
             anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/WiFi/enabled",false)
+            Switch{
+                id: swUseWIFI
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/WiFi/enabled",false)
+            }
+            Label{
+                anchors.top: parent.top
+                anchors.left: swUseWIFI.right
+                anchors.margins: 5
+                height: swUseWIFI.height
+                verticalAlignment: Text.AlignVCenter
+                text: "Near any of these WiFi"
+            }
+            Label{
+                anchors.top: parent.top
+                anchors.right: swUseWIFINot.left
+                anchors.margins: 5
+                height: swUseTimeNot.height
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignRight
+                text: "NOT"
+            }
+            Switch{
+                id: swUseWIFINot
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/WiFi/NOT",false)
+                enabled: swUseWIFI.checked
+            }
+            TextField{
+                id: txtWiFiNetworks
+                width: parent.width - 20
+                height: 45
+                anchors.top: swUseWIFI.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.margins: 5
+                text: objQSettings.getValue("/rules/" + ruleName + "/WiFi/SSIDs","")
+                placeholderText: "enter SSIDs seperated by spaces"
+                font.pixelSize: 26
+                validator: RegExpValidator{regExp: /(\w+ *)+/}
+                maximumLength: 255
+                enabled: swUseWIFI.checked
+            }
         }
-        Label{
-            anchors.top: btnTime1.bottom
-            anchors.left: swUseWIFI.right
-            height: swUseWIFI.height
-            verticalAlignment: Text.AlignVCenter
-            text: "Near any of these WiFi"
-        }
-        Label{
-            anchors.top: btnTime1.bottom
-            anchors.right: swUseWIFINot.left
-            height: swUseTimeNot.height
-            verticalAlignment: Text.AlignVCenter
-            horizontalAlignment: Text.AlignRight
-            text: "NOT"
-        }
-        Switch{
-            id: swUseWIFINot
-            anchors.top: btnTime1.bottom
-            anchors.right: parent.right
-            anchors.margins: 5
-            checked: objQSettings.getValue("/rules/" + ruleName + "/WiFi/NOT",false)
-            enabled: swUseWIFI.checked
-        }
-
-        TextField{
-            id: txtWiFiNetworks
-            width: parent.width - 20
-            height: 45
-            anchors.top: swUseWIFI.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: objQSettings.getValue("/rules/" + ruleName + "/WiFi/SSIDs","")
-            placeholderText: "enter SSIDs seperated by spaces"
-            font.pixelSize: 26
-            validator: RegExpValidator{regExp: /(\w+ *)+/}
-            maximumLength: 255
-            enabled: swUseWIFI.checked
-        }
-
-
 
         //////////////////////////SAVE  OR CANCEL
 
