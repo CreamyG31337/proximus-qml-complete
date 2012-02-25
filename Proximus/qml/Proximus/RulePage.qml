@@ -5,7 +5,8 @@ import com.nokia.extras 1.0
 Page{
     //tools: commonTools
     id: rulePage
-    property string ruleName: "InvalidRuleName"
+    property string ruleName: "???"
+    property int ruleNum: -1
     anchors.topMargin: 5
     anchors.bottomMargin: 5
     anchors.leftMargin: 2
@@ -66,11 +67,11 @@ Page{
             height: 45
             id: txtRuleName
             text:{
-                if (ruleName != "InvalidRuleName"){
-                    text = ruleName;
+                if (ruleName != "???"){
+                    text = ruleName;                    
                 }
                 else
-                    text = ""
+                    text = ""                    
             }
             placeholderText: "Enter Name For This Rule"
             font.pixelSize: 26
@@ -454,6 +455,7 @@ Page{
                 anchors.horizontalCenter: parent.horizontalCenter
                 text:"Choose Days"
                 onClicked: daysOfWeekSelectionDialog.open();
+                enabled: swDaysOfWeek.checked
             }
             MultiSelectionDialog {
                 id: daysOfWeekSelectionDialog
@@ -653,9 +655,9 @@ Page{
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.margins: 5
                 text: objQSettings.getValue("/rules/" + ruleName + "/WiFi/SSIDs","")
-                placeholderText: "enter SSIDs seperated by spaces"
+                placeholderText: "enter SSIDs seperated by commas (,)"
                 font.pixelSize: 26
-                validator: RegExpValidator{regExp: /(\w+ *)+/}
+                validator: RegExpValidator{regExp: /([^\\\/])+/}
                 maximumLength: 255
                 enabled: swUseWIFI.checked
             }
@@ -782,6 +784,15 @@ Page{
                     objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/NOT",swUseWIFINot.checked);
                     objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/SSIDs",txtWiFiNetworks.text);
                 }
+
+                if(ruleNum !== -1){
+                    console.log("set rulenum to " + ruleNum)
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Number",ruleNum + 1);
+                }
+                else{
+                    //find lowest free rule #
+                }
+
 
                 objProximusUtils.refreshRulesModel(); //why can't i call the function in settingsPage now??
                 appWindow.pageStack.pop()

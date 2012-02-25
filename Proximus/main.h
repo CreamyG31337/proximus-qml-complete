@@ -17,6 +17,11 @@
 #include <QProcess>
 #include <QDebug>
 #include <QSharedPointer>
+#include "qobjectlistmodel.h"
+#include <QtAlgorithms>
+#include <QStack>
+#include <QMap>
+
 
 class ProximusLog : public QObject
 {
@@ -33,9 +38,13 @@ class ProximusUtils : public QObject
 public:
     Q_INVOKABLE QString isServiceRunning();
     Q_INVOKABLE void refreshRulesModel();
-    QList<QObject*> *rules_ptr;
+    Q_INVOKABLE void moveRuleUp(int rulenum);
+    Q_INVOKABLE void moveRuleDown(int rulenum);
+    Q_INVOKABLE void deleteRule(int rulenum);
+    //QList<QObject*> *rules_ptr;
+    QObjectListModel *myModel;
     QSharedPointer<QDeclarativeView> view_ptr;
-
+    QMap<int,QString> RuleMap;
 };
 
 //annoying wrapper class for qsettings
@@ -85,17 +94,21 @@ class RuleObject : public QObject
     Q_OBJECT
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY myModelChanged)
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY myModelChanged)
+    Q_PROPERTY(int number READ number WRITE setNumber NOTIFY myModelChanged)
 public:
-    RuleObject(QString name, bool enabled);
+    RuleObject(QString name, bool enabled, int number);
     ~RuleObject();
     void setEnabled(bool enabled);
     void setName(QString name);
+    void setNumber(int number);
     bool enabled();
     QString name();
+    int number();
 signals:
     void myModelChanged();
 private:
     QString strname;
     bool boolenabled;
+    int ruleNumber;
 };
 #endif // MAIN_H

@@ -8,9 +8,8 @@ Controller::Controller(QObject *parent) : QObject(parent)
     ,fswatcher(new QFileSystemWatcher(this))
     ,calTimer(new QSystemAlignedTimer(this))
     ,wifiTimer(new QSystemAlignedTimer(this))
-    ,myCalWrapper(new CalWrapper(this))
-    ,externalTimer(new QSystemAlignedTimer(this))
-
+  ,externalTimer(new QSystemAlignedTimer(this))
+  ,myCalWrapper(new CalWrapper(this))
 
 {//important to init qsettings like that so it doesn't store in /home/root/ or whatever other account name
     qDebug() << "starting proximus";
@@ -48,11 +47,8 @@ Controller::Controller(QObject *parent) : QObject(parent)
     QDBusConnection::systemBus().connect(WLANCOND_SERVICE, WLANCOND_SIG_PATH,
                                          WLANCOND_SIG_INTERFACE, WLANCOND_SCAN_RESULTS_SIG,
                                          this, SLOT(recvScan(const QDBusMessage&)));
-
     connect(&waitAndReScanTimer, SIGNAL(timeout()),
             this, SLOT(requestScan()));
-
-
 
     qDebug() << "init complete; curr dayOfWeek: " << CurrentDayOfWeek;
     didSomething("Proximus Daemon startup complete.");    
@@ -81,12 +77,12 @@ void Controller::recvScan(const QDBusMessage &msg)
         match = false;
         if(ruleStruct->enabled && ruleStruct->data.wifiRule.enabled)
         {
-            QStringList RuleSSIDs = ruleStruct->data.wifiRule.SSIDs.split(" ");
+            QStringList RuleSSIDs = ruleStruct->data.wifiRule.SSIDs.split(",");
             foreach(QString SSIDfromScan, nearbySSIDs)
             {
                 foreach(QString ruleSSID,RuleSSIDs)
                 {
-                    if(ruleSSID.toUpper() == SSIDfromScan.toUpper())
+                    if(SSIDfromScan.toUpper().contains(ruleSSID.toUpper().trimmed()))
                     {
                         match = true;
                         break;
@@ -113,7 +109,6 @@ void Controller::requestScan()
     if (reply.type() == QDBusMessage::ErrorMessage){
         if  (reply.errorMessage() == "com.nokia.wlancond.error.already_active"){
             //wait and rescan
-            qDebug() << "stupid thing is busy";
             qDebug() << "wifi reports busy - waiting for rescan";
             waitAndReScanTimer.start(7,13);
             waitAndReScanTimer.setSingleShot(true);
@@ -152,6 +147,13 @@ void Controller::itsMidnight()
     }
 }
 
+void Controller::checkQueuedRules()
+{
+    while (!pendingRuleQueue.isEmpty()){
+        checkStatus(pendingRuleQueue.dequeue());
+    }
+}
+
 
 Controller::~Controller()
 {
@@ -164,7 +166,15 @@ Controller::~Controller()
 }
 
 void Controller::rulesStorageChanged() {
-    settings->sync();//REALLY needed, first!
+    MeeGo::QmHeartbeat *heartbeat;
+    heartbeat = new MeeGo::QmHeartbeat();
+    heartbeat->open(MeeGo::QmHeartbeat::SignalNeeded);
+    QTime result = heartbeat->wait(2,15,MeeGo::QmHeartbeat::WaitHeartbeat);//wait a few secs to avoid needless redoing of this step and align to heartbeat
+    heartbeat->close();
+    delete heartbeat;
+    qDebug() << "Slept " << result.second() << "seconds" ;
+
+    settings->sync();//REALLY needed, first! (maybe not after i added the wait above?)
 //    qDebug() << "rulesStorageChanged()" << settings->allKeys();
     //if service is supposed to be disabled, just exit
     if (settings->value("/settings/Service/enabled",true).toBool() == false){
@@ -192,6 +202,9 @@ void Controller::rulesStorageChanged() {
 
     //as this DOES NOT happen often, it's okay to recreate from scratch
     //delete them properly before losing the references though
+
+    pendingRuleQueue.clear();//may hold refs to below items, about to be invalid
+
     foreach(Rule* deadRule, Rules){
         qDebug() << "killing " << deadRule->name;
         delete deadRule;
@@ -200,14 +213,17 @@ void Controller::rulesStorageChanged() {
     Rules.clear();
 
     //fill list
+    int ruleNumber = 0;//counter
     settings->beginGroup("rules");
     Q_FOREACH(const QString &strRuleName, settings->childGroups()){//for each rule
+        ruleNumber++;
         settings->beginGroup(strRuleName);
         if (settings->value("enabled").toBool() == true){//if enabled
             Rule* newRule = new Rule();
             newRule->name = strRuleName;
             qDebug() << "loaded rule" << strRuleName;
-            Rules.insert(strRuleName,newRule);
+            //Rules.insert(strRuleName,newRule);
+            Rules.insert(settings->value("Number",ruleNumber + 100).toInt(), newRule);
             newRule->enabled = true;
             DataLocation* ptrRuleDataLoc = new DataLocation;
             ptrRuleDataLoc->setParent(newRule);
@@ -234,12 +250,12 @@ void Controller::rulesStorageChanged() {
             {
                 qint32 startTimeDiff, endTimeDiff;
                 startTimeDiff = QTime::currentTime().secsTo(newRule->data.timeRule.time1);
-                endTimeDiff = QTime::currentTime().secsTo(newRule->data.timeRule.time2);
-                qDebug()<< "start/end timediff: " << startTimeDiff << endTimeDiff; //27240 //34440
+                endTimeDiff = QTime::currentTime().secsTo(newRule->data.timeRule.time2);                
                 if (startTimeDiff < 1)//can be negative if it occured < 12 hrs ago?
                     startTimeDiff = 86400 + startTimeDiff;// if was negative, that's not useful. we take the # seconds in a day (86,400) and subtract the # of seconds ago the event started to get the # of seconds when it starts next.
                 if (endTimeDiff < 1)
                     endTimeDiff = 86400 + endTimeDiff;//same thing here
+                qDebug()<< "adj. start/end timediff: " << startTimeDiff << endTimeDiff;
                 //connect signal to rule
                 connect(&newRule->data.timeRule, SIGNAL(activeChanged(Rule*)),
                         this, SLOT(checkStatus(Rule*))
@@ -257,7 +273,6 @@ void Controller::rulesStorageChanged() {
                     if (newRule->data.timeRule.inverseCond == true) {//need to set directly
                         qDebug() << "time inverse - should be set active";
                         //newRule->data.timeRule.active = true;
-                        //checkStatus(newRule); //defer this
                     }
                 }
             }
@@ -277,9 +292,11 @@ void Controller::rulesStorageChanged() {
             newRule->data.weekdayRule.daysSelected = settings->value("DaysOfWeek/INDEXES");
             //set to active now if it should be because this stuff is only rechecked at midnight
              if(newRule->data.weekdayRule.daysSelected.toStringList().contains(QString::number(CurrentDayOfWeek))){
+                 qDebug() << "weekday true on load";
                  newRule->data.weekdayRule.active = true;
              }
              else{
+                 qDebug() << "weekday false on load";
                  newRule->data.weekdayRule.active = false;
              }
 
@@ -305,6 +322,9 @@ void Controller::rulesStorageChanged() {
                 if (!pendingScan)
                     requestScan();
             }
+            qDebug() << "trying to check rule" << newRule->name;
+            checkStatus(newRule);
+            qDebug() << "done checking rule" << newRule->name;
 
         }
         else{//rule was not enabled, we skipped all of the above
@@ -345,7 +365,7 @@ void Controller::updateCalendar()
     QList<QOrganizerItem> entries =
              defaultManager.items(QDateTime::currentDateTime(),//not sure if this returns events already started
                                   QDateTime::currentDateTime().addSecs(3600)); //read next hour of calendar data
-    //for each calendar rule
+    //for each calendar rule; because they are in a QMap keyed by "number" it should be in order by the number
     Q_FOREACH(Rule* ruleStruct,  Rules) {
         bool foundMatch = false;
         QString keywords = ruleStruct->data.calendarRule.keywords;
@@ -411,7 +431,7 @@ void Controller::updateCalendar()
                 if (foundMatch == false && ruleStruct->data.calendarRule.inverseCond == true)
                 {//need to set directly (or we could have called deactivated(). whatever.)
                      ruleStruct->data.calendarRule.active = true;
-                     checkStatus(ruleStruct);
+                    // checkStatus(ruleStruct); //defer this
                 }
             }
         }
@@ -473,12 +493,6 @@ void DataWifi::activated()
     Q_EMIT activeChanged((Rule*)this->parent());
 }
 
-void DataWifi::pretendChanged()
-{
-    qDebug() << "pick me!";
-    Q_EMIT activeChanged((Rule*)this->parent());
-}
-
 //sets wifi rule to inactive
 void DataWifi::deactivated()
 {
@@ -532,19 +546,21 @@ void Controller::startGPS()
 void Controller::checkStatus(Rule* ruleStruct)
 {
     if (pendingScan){
-        qDebug()  << "waiting for scan";
-        didSomething("Rule status check delayed by pending wifi scan");
+        qDebug() << "Rule" << ruleStruct->name << "status check delayed by pending wifi scan";
+        didSomething("Rule " + ruleStruct->name + " status check delayed by pending wifi scan");
         connect(&ruleStruct->waitForScanTimer, SIGNAL(timeout()),
-                &ruleStruct->data.wifiRule, SLOT(pretendChanged()));
+                this, SLOT(checkQueuedRules()));
 
         ruleStruct->waitForScanTimer.start(14,18);
         ruleStruct->waitForScanTimer.setSingleShot(true);
-
+        pendingRuleQueue.enqueue(ruleStruct);
         return;
     }
+    pendingRuleQueue.enqueue(ruleStruct); //still, enqueue this item so we don't have to check if empty here
+    qDebug() << "now checking " <<  pendingRuleQueue.dequeue()->name;
 
     disconnect(&ruleStruct->waitForScanTimer, SIGNAL(timeout()),
-            &ruleStruct->data.wifiRule, SLOT(pretendChanged()));
+            this, SLOT(checkQueuedRules()));
 
     QVariant locationCond = false;
     if (ruleStruct->data.locationRule->enabled && locationDataSource) //no locationDataSource if user has disabled positioning
@@ -608,18 +624,27 @@ void Controller::checkStatus(Rule* ruleStruct)
     }
     else
         wifiCond = true;
-    didSomething("Status of '" + ruleStruct->name + "' = loc:" + locationCond.toString() + " time:" + timeCond.toString() + " cal:" + calendarCond.toString() + " day:" + dayOfWeekCond.toString() + " wifi:"+ wifiCond.toString());
-    qDebug() << "Status of " << ruleStruct->name << "= loc:" << locationCond.toString() << " time:" << timeCond.toString() << " cal:" << calendarCond.toString() << " day:" << dayOfWeekCond.toString() << " wifi:" << wifiCond.toString();
-    bool result = locationCond.toBool() && timeCond.toBool() && calendarCond.toBool() && dayOfWeekCond.toBool() && wifiCond.toBool();
-    ruleStruct->active = result;
 
-    if (result)
+    QVariant result = locationCond.toBool() && timeCond.toBool() && calendarCond.toBool() && dayOfWeekCond.toBool() && wifiCond.toBool();
+    didSomething(ruleStruct->name + "="+ result.toString() +"(loc:" + locationCond.toString() + " time:" + timeCond.toString() + " cal:" + calendarCond.toString() + " day:" + dayOfWeekCond.toString() + " wifi:"+ wifiCond.toString() +")") ;
+    qDebug() << ruleStruct->name << "=" << result  << "(loc:" << locationCond.toString() << " time:" << timeCond.toString() << " cal:" << calendarCond.toString() << " day:" << dayOfWeekCond.toString() << " wifi:" << wifiCond.toString() << ")";
+    ruleStruct->active = result.toBool();
+
+    if (result.toBool())
     {
-        settings->beginGroup("rules");
-        settings->beginGroup(ruleStruct->name);
+        qDebug() << "1" <<settings->group();
+        bool backOutSettings = false;
+        if(!settings->group().contains(ruleStruct->name)){
+            backOutSettings = true;
+            settings->beginGroup("rules");
+            settings->beginGroup(ruleStruct->name);
+        }
+        qDebug() << settings->value("Actions/Profile/enabled",999);
         if (settings->value("Actions/Profile/enabled",false).toBool() == true)
         {//set profile first to enable / disable sounds during other actions
+            qDebug() << "2";
             #ifndef Q_WS_SIMULATOR
+            qDebug() << "3";
             qDebug() << "attempting to switch to profile " << settings->value("Actions/Profile/NAME","").toString();
             didSomething("switching to profile " + settings->value("Actions/Profile/NAME","").toString());
             ProfileClient *profileClient = new ProfileClient(this);
@@ -644,8 +669,10 @@ void Controller::checkStatus(Rule* ruleStruct)
                 didSomething("skipping create new reminder, disabled until " + (settings->value("Actions/Reminder/DisableUntil",QDateTime::currentDateTime()).toDateTime()).toString()  );
             }
         }
-        settings->endGroup();
-        settings->endGroup();
+        if(backOutSettings){
+            settings->endGroup();
+            settings->endGroup();
+        }
     }
 }
 

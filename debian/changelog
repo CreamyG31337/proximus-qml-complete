@@ -1,3 +1,8 @@
+proximus-complete (1.2.8) unstable; urgency=low
+  * rules can be sorted and will execute in that order
+
+ -- lance colton <lance.colton@gmail.com>  Fri, 10 Feb 2012 00:00:00 -0700
+
 proximus-complete (1.2.7) unstable; urgency=low
   * added scrollbars and improved layout of rule setting screen
   * fixed minor bugs

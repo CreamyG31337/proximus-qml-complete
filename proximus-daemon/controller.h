@@ -24,7 +24,8 @@
 #include <QtCore/QFileSystemWatcher>
 #include <QtDBus>
 #include <calwrapper.h>
-
+#include <qmheartbeat.h>
+#include <QQueue>
 
 
 #if defined(Q_WS_MAEMO_5)
@@ -111,7 +112,6 @@ public:
 public Q_SLOTS:
     void activated();
     void deactivated();
-    void pretendChanged();
 Q_SIGNALS:
     void activeChanged(Rule* ruleStruct);
 };
@@ -152,6 +152,7 @@ public:
     bool active;
     RuleData data;
     QSystemAlignedTimer waitForScanTimer; //when a scan result is pending we wait a few seconds for the results before evaluating the rules
+    int RuleNumber;
 //public Q_SLOTS:
 //    void checkMeNow();
 };
@@ -190,6 +191,7 @@ private Q_SLOTS:
     void didSomething(QString strInfo);
 
     void itsMidnight();
+    void checkQueuedRules();
 
 private:
     QPointer<QGeoSatelliteInfoSource> satelliteInfoSource;
@@ -200,7 +202,8 @@ private:
      */
     void startGPS();
     QPointer<QSettings> settings;
-    QHash<QString, Rule*> Rules;
+    //QHash<QString, Rule*> Rules;
+    QMap<int, Rule*> Rules;
     QPointer<QFileSystemWatcher> fswatcher;
     QPointer<QSystemAlignedTimer> calTimer;
     QOrganizerManager defaultManager;
@@ -211,6 +214,7 @@ private:
     QPointer<CalWrapper> myCalWrapper; //I don't trust this thing to clean up when destroyed based on QOrganizerManager leaking like a sieve. Better to just hold onto one ref for now.
     QSystemAlignedTimer midnightTimer; //goes off at midnight to support the DaysOfWeek rule; started from updateCalen
     int CurrentDayOfWeek; //0-6; Sunday = 0, Monday = 1, etc
+    QQueue<Rule*> pendingRuleQueue; //filled by checkStatus() when a wifi scan is pending
 };
 
 #endif // CONTROLLER_H
