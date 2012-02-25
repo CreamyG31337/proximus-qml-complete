@@ -38,5 +38,6 @@ Page {
         txtLog.text += "\n" + objProximusUtils.isServiceRunning();
         txtLog.text += "\nSettings read from " + objQSettings.fileName();
         txtLog.text += "\n\nNokia's positioning methods may use too much resources, especially when GPS is disabled. Please see bug #641 at harmattan-bugs.nokia.com for more info. There's an option to disable positioning completely for now.";
+        txtLog.text += "\n\nWifi SSID rule format has changed in v1.2.8, please separate multiple SSIDs with commas.";
     }
 }

@@ -58,7 +58,7 @@ Page{
     Flickable{
     id: flickable
     anchors.fill: parent
-    contentHeight: 1075
+    contentHeight: 1125
     //contentHeight: childrenRect.height
         TextField{
             anchors.top: parent.top
@@ -83,7 +83,7 @@ Page{
         Rectangle{
             id: recActions
             color: "transparent"
-            height: 175
+            height: 225
             width: parent.width
             anchors.top: txtRuleName.bottom
             border.width: 2
@@ -155,6 +155,7 @@ Page{
                 id: txtReminderText
                 width: rulePage.width - 20
                 height: 45
+                anchors.margins: 5
                 anchors.top: swCreateReminder.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: objQSettings.getValue("/rules/" + ruleName + "/Actions/Reminder/TEXT","")
@@ -163,6 +164,22 @@ Page{
                 validator: RegExpValidator{regExp: /(\w+ *)+/}
                 maximumLength: 255
                 enabled: swCreateReminder.checked
+            }
+      //////////////POWER SAVE MODE
+            Switch{
+                anchors.top: txtReminderText.bottom
+                anchors.margins: 5
+                anchors.left: parent.left
+                id: swPowerSaveMode
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/PowerSave/enabled",false)
+            }
+            Label{
+                anchors.margins: 7
+                anchors.top: txtReminderText.bottom
+                anchors.left: swPowerSaveMode.right
+                height: swPowerSaveMode.height
+                verticalAlignment: Text.AlignVCenter
+                text: "Enter Power Save Mode"
             }
         }
 //////////////////RULES
@@ -286,7 +303,7 @@ Page{
             TextField{
                 id: txtLocLatitude
                 anchors.top: radiusSlider.bottom
-                anchors.left: txtLocLongitude.left
+                anchors.left: lblLocationLongitude.right
                 anchors.margins: 5
                 width: 180
                 height: 45
@@ -744,6 +761,8 @@ Page{
                 if (swCreateReminder.checked){
                     objQSettings.setValue("/rules/" + txtRuleName.text + "/Actions/Reminder/TEXT",txtReminderText.text);
                 }
+                objQSettings.setValue("/rules/" + txtRuleName.text + "/Actions/PowerSave/enabled",swPowerSaveMode.checked);
+
 
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/enabled",swUseLocation.checked);
                 if (swUseLocation.checked){

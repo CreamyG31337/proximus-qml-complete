@@ -26,6 +26,7 @@
 #include <calwrapper.h>
 #include <qmheartbeat.h>
 #include <QQueue>
+#include <qmdevicemode.h>
 
 
 #if defined(Q_WS_MAEMO_5)
@@ -192,6 +193,7 @@ private Q_SLOTS:
 
     void itsMidnight();
     void checkQueuedRules();
+    void switchProfileNow(); //sets profile to lastRequestedProfile
 
 private:
     QPointer<QGeoSatelliteInfoSource> satelliteInfoSource;
@@ -202,7 +204,6 @@ private:
      */
     void startGPS();
     QPointer<QSettings> settings;
-    //QHash<QString, Rule*> Rules;
     QMap<int, Rule*> Rules;
     QPointer<QFileSystemWatcher> fswatcher;
     QPointer<QSystemAlignedTimer> calTimer;
@@ -215,6 +216,8 @@ private:
     QSystemAlignedTimer midnightTimer; //goes off at midnight to support the DaysOfWeek rule; started from updateCalen
     int CurrentDayOfWeek; //0-6; Sunday = 0, Monday = 1, etc
     QQueue<Rule*> pendingRuleQueue; //filled by checkStatus() when a wifi scan is pending
+    QSystemAlignedTimer profileSwitchTimer; //calls switchProfileNow() a few seconds after being started
+    QString lastRequestedProfile; //updated every time a rule wants to switch profiles
 };
 
 #endif // CONTROLLER_H

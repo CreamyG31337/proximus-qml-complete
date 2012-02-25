@@ -26,6 +26,10 @@ Controller::Controller(QObject *parent) : QObject(parent)
     CurrentDayOfWeek = QDate::currentDate().dayOfWeek(); //1-7; monday = 1, sunday = 7
     if (CurrentDayOfWeek == 7) CurrentDayOfWeek = 0;
 
+
+    connect(&profileSwitchTimer,SIGNAL(timeout()),this,SLOT(switchProfileNow()));
+
+
     //call once now to populate initial rules
     rulesStorageChanged();
 
@@ -152,6 +156,16 @@ void Controller::checkQueuedRules()
     while (!pendingRuleQueue.isEmpty()){
         checkStatus(pendingRuleQueue.dequeue());
     }
+}
+
+void Controller::switchProfileNow()
+{
+    ProfileClient *profileClient = new ProfileClient(this);
+    qDebug() << "really switching profile to" << lastRequestedProfile;
+    didSomething("requesting profile switch to " + lastRequestedProfile);
+    if (!profileClient->setProfile(lastRequestedProfile))
+        qDebug() << "failed to switch profile!!";
+    delete profileClient;
 }
 
 
@@ -632,7 +646,6 @@ void Controller::checkStatus(Rule* ruleStruct)
 
     if (result.toBool())
     {
-        qDebug() << "1" <<settings->group();
         bool backOutSettings = false;
         if(!settings->group().contains(ruleStruct->name)){
             backOutSettings = true;
@@ -642,17 +655,11 @@ void Controller::checkStatus(Rule* ruleStruct)
         qDebug() << settings->value("Actions/Profile/enabled",999);
         if (settings->value("Actions/Profile/enabled",false).toBool() == true)
         {//set profile first to enable / disable sounds during other actions
-            qDebug() << "2";
-            #ifndef Q_WS_SIMULATOR
-            qDebug() << "3";
-            qDebug() << "attempting to switch to profile " << settings->value("Actions/Profile/NAME","").toString();
-            didSomething("switching to profile " + settings->value("Actions/Profile/NAME","").toString());
-            ProfileClient *profileClient = new ProfileClient(this);
-            if (!profileClient->setProfile(settings->value("Actions/Profile/NAME","").toString()))
-                qDebug() << "failed to switch profile!!";
-            delete profileClient;
-            #else
-            #endif
+            qDebug() << "queuing profile switch to" << settings->value("Actions/Profile/NAME","").toString();
+            didSomething("queuing profile switch to " + settings->value("Actions/Profile/NAME","").toString());
+            lastRequestedProfile = settings->value("Actions/Profile/NAME","").toString();
+            profileSwitchTimer.setSingleShot(true);
+            profileSwitchTimer.start(2,5);
         }
         if (settings->value("Actions/Reminder/enabled",false).toBool() == true) {
             //check if this action was done in the last 12 hours. secsto will be negative or zero if not
@@ -669,9 +676,26 @@ void Controller::checkStatus(Rule* ruleStruct)
                 didSomething("skipping create new reminder, disabled until " + (settings->value("Actions/Reminder/DisableUntil",QDateTime::currentDateTime()).toDateTime()).toString()  );
             }
         }
+        if (settings->value("Actions/PowerSave/enabled",false).toBool() == true) {
+            //force power save mode on
+            MeeGo::QmDeviceMode deviceMode;
+            deviceMode.setPSMState (MeeGo::QmDeviceMode::PSMStateOn);
+            qDebug() << "tried to set PSM on";
+            didSomething("PSM on");
+        }
         if(backOutSettings){
             settings->endGroup();
             settings->endGroup();
+        }
+    }
+    else//rule evaluated to false
+    {
+        if (settings->value("Actions/PowerSave/enabled",false).toBool() == true) {
+            //force power save mode off once rule is inactive
+            MeeGo::QmDeviceMode deviceMode;
+            deviceMode.setPSMState (MeeGo::QmDeviceMode::PSMStateOff);
+            qDebug() << "tried to set PSM off";
+            didSomething("PSM off");
         }
     }
 }

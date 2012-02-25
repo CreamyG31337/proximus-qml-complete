@@ -35,6 +35,7 @@ MOBILITY += location
 MOBILITY += systeminfo
 #calendar
 MOBILITY += organizer
+CONFIG += qmsystem2
 
 INCLUDEPATH += /usr/include/
 #t:\ is mapped to /scratchbox/ on my VMware machine; seems to work fine like this
