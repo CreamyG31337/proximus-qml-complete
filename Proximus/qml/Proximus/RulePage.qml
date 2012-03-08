@@ -58,7 +58,7 @@ Page{
     Flickable{
     id: flickable
     anchors.fill: parent
-    contentHeight: 1125
+    contentHeight: 1225
     //contentHeight: childrenRect.height
         TextField{
             anchors.top: parent.top
@@ -83,7 +83,7 @@ Page{
         Rectangle{
             id: recActions
             color: "transparent"
-            height: 225
+            height: 275
             width: parent.width
             anchors.top: txtRuleName.bottom
             border.width: 2
@@ -180,6 +180,29 @@ Page{
                 height: swPowerSaveMode.height
                 verticalAlignment: Text.AlignVCenter
                 text: "Enter Power Save Mode"
+            }
+      //RUN COMMAND
+            Switch{
+                anchors.top: swPowerSaveMode.bottom
+                anchors.margins: 5
+                anchors.left: parent.left
+                id: swRunCommand
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Actions/RunCommand/enabled",false)
+            }
+            TextField{
+                id: txtCommandToRun
+                width: rulePage.width - swRunCommand.width - 20
+                height: 45
+                anchors.margins: 5
+                anchors.top: swPowerSaveMode.bottom
+                anchors.left: swRunCommand.right
+                text: objQSettings.getValue("/rules/" + ruleName + "/Actions/RunCommand/TEXT","")
+                placeholderText: "enter command to run"
+                font.pixelSize: 26
+               // validator: RegExpValidator{regExp: /(\w+ *)+/}
+                maximumLength: 255
+                enabled: swRunCommand.checked
+                inputMethodHints: Qt.ImhNoAutoUppercase + Qt.ImhNoPredictiveText
             }
         }
 //////////////////RULES
@@ -677,9 +700,54 @@ Page{
                 validator: RegExpValidator{regExp: /([^\\\/])+/}
                 maximumLength: 255
                 enabled: swUseWIFI.checked
+                inputMethodHints: Qt.ImhNoAutoUppercase + Qt.ImhNoPredictiveText
             }
         }
+        ////////////////// DEVICE IS CHARGING
 
+        Rectangle{
+            id: recCharging
+            color: "transparent"
+            height: 50
+            width: parent.width
+            anchors.top: recWiFi.bottom
+            border.width: 2
+            border.color: "steelblue"
+            radius: 10
+            anchors.margins: 5
+            Switch{
+                id: swUseChargingState
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Charging/enabled",false)
+            }
+            Label{
+                anchors.top: parent.top
+                anchors.left: swUseChargingState.right
+                anchors.margins: 5
+                height: swUseChargingState.height
+                verticalAlignment: Text.AlignVCenter
+                text: "Device is Charging"
+            }
+            Label{
+                anchors.top: parent.top
+                anchors.right: swUseChargingStateNOT.left
+                anchors.margins: 5
+                height: swUseChargingStateNOT.height
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignRight
+                text: "NOT"
+            }
+            Switch{
+                id: swUseChargingStateNOT
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 5
+                checked: objQSettings.getValue("/rules/" + ruleName + "/Charging/NOT",false)
+                enabled: swUseWIFI.checked
+            }
+        }
         //////////////////////////SAVE  OR CANCEL
 
         Button{
@@ -763,6 +831,10 @@ Page{
                 }
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Actions/PowerSave/enabled",swPowerSaveMode.checked);
 
+                objQSettings.setValue("/rules/" + txtRuleName.text + "/Actions/RunCommand/enabled",swRunCommand.checked);
+                if (swRunCommand.checked){
+                    objQSettings.setValue("/rules/" + txtRuleName.text + "/Actions/RunCommand/TEXT",txtCommandToRun.text);
+                }
 
                 objQSettings.setValue("/rules/" + txtRuleName.text + "/Location/enabled",swUseLocation.checked);
                 if (swUseLocation.checked){
@@ -803,6 +875,9 @@ Page{
                     objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/NOT",swUseWIFINot.checked);
                     objQSettings.setValue("/rules/" + txtRuleName.text + "/WiFi/SSIDs",txtWiFiNetworks.text);
                 }
+
+                objQSettings.setValue("/rules/" + txtRuleName.text + "/Charging/enabled",swUseChargingState.checked);
+                objQSettings.setValue("/rules/" + txtRuleName.text + "/Charging/NOT",swUseChargingStateNOT.checked);
 
                 if(ruleNum !== -1){
                     console.log("set rulenum to " + ruleNum)

@@ -27,6 +27,7 @@
 #include <qmheartbeat.h>
 #include <QQueue>
 #include <qmdevicemode.h>
+#include <QSystemBatteryInfo>
 
 
 #if defined(Q_WS_MAEMO_5)
@@ -132,6 +133,20 @@ Q_SIGNALS:
     void activeChanged(Rule* ruleStruct);
 };
 
+class DataCharging : public QObject
+{
+    Q_OBJECT
+public:
+    bool enabled;
+    bool inverseCond;
+    bool active;
+public Q_SLOTS:
+    void activated();
+    void deactivated();
+Q_SIGNALS:
+    void activeChanged(Rule* ruleStruct);
+};
+
 struct RuleData
 {
     explicit RuleData();
@@ -141,6 +156,7 @@ struct RuleData
     DataCalendar calendarRule;
     DataWifi wifiRule;
     DataDayOfWeek weekdayRule;
+    DataCharging chargingRule;
 };
 class Rule : public QObject
 {
@@ -151,11 +167,9 @@ public:
     QString name;
     bool enabled;
     bool active;
-    RuleData data;
-    QSystemAlignedTimer waitForScanTimer; //when a scan result is pending we wait a few seconds for the results before evaluating the rules
+    RuleData data;    
     int RuleNumber;
-//public Q_SLOTS:
-//    void checkMeNow();
+    bool waitingForWiFiScan;
 };
 
 class Controller : public QObject
@@ -194,6 +208,7 @@ private Q_SLOTS:
     void itsMidnight();
     void checkQueuedRules();
     void switchProfileNow(); //sets profile to lastRequestedProfile
+    void chargingStateChanged(QSystemBatteryInfo::ChargingState state);
 
 private:
     QPointer<QGeoSatelliteInfoSource> satelliteInfoSource;
@@ -215,9 +230,13 @@ private:
     QPointer<CalWrapper> myCalWrapper; //I don't trust this thing to clean up when destroyed based on QOrganizerManager leaking like a sieve. Better to just hold onto one ref for now.
     QSystemAlignedTimer midnightTimer; //goes off at midnight to support the DaysOfWeek rule; started from updateCalen
     int CurrentDayOfWeek; //0-6; Sunday = 0, Monday = 1, etc
-    QQueue<Rule*> pendingRuleQueue; //filled by checkStatus() when a wifi scan is pending
+    //QQueue<Rule*> pendingRuleQueue; //filled by checkStatus() when a wifi scan is pending
     QSystemAlignedTimer profileSwitchTimer; //calls switchProfileNow() a few seconds after being started
     QString lastRequestedProfile; //updated every time a rule wants to switch profiles
+    QMap<QString, bool> ruleCommandAlreadyStarted; //rulename, true set when a command is run, won't be run again until false. false is set when rule evaluates to false
+    bool deviceIsCharging; //true if charging, false if discharging
+    QSystemBatteryInfo myBatteryInfo;
+    QSystemAlignedTimer waitForScanTimer; //when a scan result is pending we wait a few seconds for the results before evaluating the rules
 };
 
 #endif // CONTROLLER_H

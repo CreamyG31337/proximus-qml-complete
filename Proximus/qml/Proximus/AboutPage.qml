@@ -20,7 +20,7 @@ Page{
     tools: noTools
     Label{
         id: lblVersion
-        text: "Proximus version 1.2.9"
+        text: "Proximus version 1.3.2"
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.topMargin: 20

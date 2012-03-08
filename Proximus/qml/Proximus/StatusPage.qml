@@ -30,6 +30,7 @@ Page {
                         txtLog.text = "(...log truncated)\n" + txtLog.text.slice(-2000);
                     }
                     txtLog.text += "\n" + Qt.formatTime(new Date(),"hh:mm:ss") + ": " + LogText;
+                    //this really needs to scroll to the bottom now, but there's no way??
                 }
             }
         }

@@ -1,5 +1,23 @@
+proximus-complete (1.3.2) unstable; urgency=low
+  * fixed bug that causes wifi scans to queue endlessly when they fail multiple times
+
+ -- lance colton <lance.colton@gmail.com>  Wed, 07 Mar 2012 21:29:06 -0700
+
+proximus-complete (1.3.1) unstable; urgency=low
+  * can monitor charging status and create rules based on this
+    - if this doesn't work correctly, restart the phone by holding in the power button 10 seconds
+    - let me know if this happens often, it's a bug with harmattan but I could work around it
+
+ -- lance colton <lance.colton@gmail.com>  Wed, 29 Feb 2012 19:59:15 -0700
+
+proximus-complete (1.3.0) unstable; urgency=low
+  * supports running custom commands
+
+ -- lance colton <lance.colton@gmail.com>  Sun, 26 Feb 2012 21:30:25 -0700
+
 proximus-complete (1.2.9) unstable; urgency=low
-  * <Add change description here>
+  * new option to force device into power save mode. will switch back to normal when the rule becomes inactive.
+  * profile switch is now queued and executing after 3-4 seconds to avoid multiple rules causing several changes in a row
 
  -- lance colton <lance.colton@gmail.com>  Sat, 25 Feb 2012 00:25:36 -0700
 

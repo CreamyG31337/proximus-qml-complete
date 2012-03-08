@@ -8,8 +8,9 @@ Controller::Controller(QObject *parent) : QObject(parent)
     ,fswatcher(new QFileSystemWatcher(this))
     ,calTimer(new QSystemAlignedTimer(this))
     ,wifiTimer(new QSystemAlignedTimer(this))
-  ,externalTimer(new QSystemAlignedTimer(this))
-  ,myCalWrapper(new CalWrapper(this))
+    //,externalTimer(new QSystemAlignedTimer(this))
+    ,myCalWrapper(new CalWrapper(this))
+    //,myBatteryInfo(new QSystemBatteryInfo(this))
 
 {//important to init qsettings like that so it doesn't store in /home/root/ or whatever other account name
     qDebug() << "starting proximus";
@@ -27,7 +28,26 @@ Controller::Controller(QObject *parent) : QObject(parent)
     if (CurrentDayOfWeek == 7) CurrentDayOfWeek = 0;
 
 
+    //set initial state
+
+    //sometimes the underlying signals don't work, not sure how often this occurs so ignored for now
+    if (myBatteryInfo.chargingState() == QSystemBatteryInfo::Charging){
+        deviceIsCharging = true;
+        qDebug() << "apparently charging" << myBatteryInfo.chargingState();
+    }
+    else{
+        deviceIsCharging = false;
+        qDebug() << "apparently NOT charging" << myBatteryInfo.chargingState();
+    }
+
+    connect(&myBatteryInfo,SIGNAL(chargingStateChanged(QSystemBatteryInfo::ChargingState)),
+                                  this, SLOT(chargingStateChanged(QSystemBatteryInfo::ChargingState)));
+
+
     connect(&profileSwitchTimer,SIGNAL(timeout()),this,SLOT(switchProfileNow()));
+
+    connect(&this->waitForScanTimer, SIGNAL(timeout()),
+            this, SLOT(checkQueuedRules()));
 
 
     //call once now to populate initial rules
@@ -68,6 +88,11 @@ void Controller::recvScan(const QDBusMessage &msg)
     nearbySSIDs.clear();
     QList<QVariant> args = msg.arguments();
     int networks = args.value(0).value<int>();
+    if (( networks > 64)|| (networks < 0)){
+        didSomething("wifi dbus error - pls report this bug");
+        return;
+    }
+
     for (int c = 0; c < networks; c++) {
         int pos = 1 + (c * 5);
         nearbySSIDs.append(args.value(pos).value<QByteArray>());
@@ -104,21 +129,35 @@ void Controller::recvScan(const QDBusMessage &msg)
 }
 
 void Controller::requestScan()
-{
+{    
+    if(pendingScan){
+        qDebug() << "skipped extra wifi scan request";
+        return;
+    }
+    didSomething("requesting wifi scan");
     pendingScan = true;
     QDBusInterface remoteApp(WLANCOND_SERVICE, WLANCOND_REQ_PATH,
                               WLANCOND_REQ_INTERFACE , QDBusConnection::systemBus());
 
     QDBusMessage reply = remoteApp.call(WLANCOND_SCAN_REQ, WLANCOND_TX_POWER10, QByteArray (""), 0);
     if (reply.type() == QDBusMessage::ErrorMessage){
-        if  (reply.errorMessage() == "com.nokia.wlancond.error.already_active"){
+        QString errMessage = reply.errorMessage();
+        if  (errMessage == "com.nokia.wlancond.error.already_active"){
             //wait and rescan
-            qDebug() << "wifi reports busy - waiting for rescan";
+            qDebug() << "wifi already active - waiting for rescan";
+            waitAndReScanTimer.stop();
             waitAndReScanTimer.start(7,13);
             waitAndReScanTimer.setSingleShot(true);
         }
+        else if (errMessage == "com.nokia.wlancond.error.wlan_disabled"){
+            didSomething("wifi disabled - can't scan");
+            qDebug() << errMessage; //likes to get "com.nokia.wlancond.error.already_active" , and then not do a scan...
+        }
         else
-            qDebug() << reply.errorMessage(); //likes to get "com.nokia.wlancond.error.already_active" , and then not do a scan...
+        {
+            didSomething("wifi error - unknown - pls report: " +  errMessage);
+            qDebug() << errMessage; //likes to get "com.nokia.wlancond.error.already_active" , and then not do a scan...
+        }
     }
 }
 
@@ -153,8 +192,20 @@ void Controller::itsMidnight()
 
 void Controller::checkQueuedRules()
 {
-    while (!pendingRuleQueue.isEmpty()){
-        checkStatus(pendingRuleQueue.dequeue());
+
+    foreach(Rule* ruleStruct,  Rules) {
+        if (ruleStruct->waitingForWiFiScan){
+            if (pendingScan){
+                qDebug() << "Rule" << ruleStruct->name << "status check delayed (again) by pending wifi scan";
+                didSomething("Rule " + ruleStruct->name + " status check delayed (again) by pending wifi scan");
+                waitForScanTimer.stop();
+                waitForScanTimer.start(300,360);//check again in 5-6 min
+                waitForScanTimer.setSingleShot(true);
+            }
+            else {
+                checkStatus(ruleStruct);
+            }
+        }
     }
 }
 
@@ -168,6 +219,35 @@ void Controller::switchProfileNow()
     delete profileClient;
 }
 
+void Controller::chargingStateChanged(QSystemBatteryInfo::ChargingState state)
+{//this tends to fire 2-3 times as the phone negotiates 100 to 500 ma
+    qDebug() << "charging state changed to " << state;
+    if (state == QSystemBatteryInfo::NotCharging){
+        deviceIsCharging = false;
+        didSomething("phone is not charging");
+
+    }
+    else if (state == QSystemBatteryInfo::Charging){
+        deviceIsCharging = true;
+        didSomething("phone is charging");
+    }
+
+    foreach(Rule* checkRule, Rules){
+        if (checkRule->data.chargingRule.enabled){
+            bool shouldActivate = false;
+            if (deviceIsCharging && !checkRule->data.chargingRule.inverseCond)
+                shouldActivate = true;
+            if (!deviceIsCharging && checkRule->data.chargingRule.inverseCond)
+                shouldActivate = true;
+            if (shouldActivate)
+                checkRule->data.chargingRule.activated();
+            else
+                checkRule->data.chargingRule.deactivated();
+            qDebug() << "adj charging status of " << checkRule->name << "to" << shouldActivate;            
+        }
+    }    
+}
+
 
 Controller::~Controller()
 {
@@ -177,6 +257,8 @@ Controller::~Controller()
     delete wifiTimer;
     delete satelliteInfoSource;
     delete myCalWrapper;
+//    delete myBatteryInfo;
+//    delete externalTimer;
 }
 
 void Controller::rulesStorageChanged() {
@@ -217,8 +299,6 @@ void Controller::rulesStorageChanged() {
     //as this DOES NOT happen often, it's okay to recreate from scratch
     //delete them properly before losing the references though
 
-    pendingRuleQueue.clear();//may hold refs to below items, about to be invalid
-
     foreach(Rule* deadRule, Rules){
         qDebug() << "killing " << deadRule->name;
         delete deadRule;
@@ -236,7 +316,6 @@ void Controller::rulesStorageChanged() {
             Rule* newRule = new Rule();
             newRule->name = strRuleName;
             qDebug() << "loaded rule" << strRuleName;
-            //Rules.insert(strRuleName,newRule);
             Rules.insert(settings->value("Number",ruleNumber + 100).toInt(), newRule);
             newRule->enabled = true;
             DataLocation* ptrRuleDataLoc = new DataLocation;
@@ -276,17 +355,13 @@ void Controller::rulesStorageChanged() {
                 );
                 newRule->data.timeRule.deactivateTimer.start(endTimeDiff * 1000);
                 newRule->data.timeRule.deactivateTimer.setSingleShot(true);
-                //ui->txtLog->appendPlainText("timer to deactivate rule set for " + QString::number(endTimeDiff) + "s");
                 if (endTimeDiff < startTimeDiff)//means we are activated right now
-                    //newRule->data.timeRule.activated();//defer this
                     newRule->data.timeRule.active = true;
                 else {
                     newRule->data.timeRule.activateTimer.start(startTimeDiff * 1000);//convert to ms
                     newRule->data.timeRule.activateTimer.setSingleShot(true);
-                   // ui->txtLog->appendPlainText("timer to activate rule set for " +  QString::number(startTimeDiff) + "s");
                     if (newRule->data.timeRule.inverseCond == true) {//need to set directly
                         qDebug() << "time inverse - should be set active";
-                        //newRule->data.timeRule.active = true;
                     }
                 }
             }
@@ -313,6 +388,14 @@ void Controller::rulesStorageChanged() {
                  qDebug() << "weekday false on load";
                  newRule->data.weekdayRule.active = false;
              }
+            //CHARGING STATUS
+            newRule->data.chargingRule.active = deviceIsCharging;
+            newRule->data.chargingRule.setParent(newRule);
+            newRule->data.chargingRule.enabled = settings->value("Charging/enabled",false).toBool();
+            newRule->data.chargingRule.inverseCond = settings->value("Charging/NOT",false).toBool();
+            connect(&newRule->data.chargingRule, SIGNAL(activeChanged(Rule*)),
+                    this, SLOT(checkStatus(Rule*))
+                    );
 
             //WIFI
             newRule->data.wifiRule.active = false;
@@ -342,7 +425,7 @@ void Controller::rulesStorageChanged() {
 
         }
         else{//rule was not enabled, we skipped all of the above
-          //  ui->listWidgetRules->item(ui->listWidgetRules->count() - 1)->setForeground(Qt::red);
+
         }
         settings->endGroup();
     }
@@ -562,19 +645,17 @@ void Controller::checkStatus(Rule* ruleStruct)
     if (pendingScan){
         qDebug() << "Rule" << ruleStruct->name << "status check delayed by pending wifi scan";
         didSomething("Rule " + ruleStruct->name + " status check delayed by pending wifi scan");
-        connect(&ruleStruct->waitForScanTimer, SIGNAL(timeout()),
-                this, SLOT(checkQueuedRules()));
 
-        ruleStruct->waitForScanTimer.start(14,18);
-        ruleStruct->waitForScanTimer.setSingleShot(true);
-        pendingRuleQueue.enqueue(ruleStruct);
+        waitForScanTimer.stop();
+        waitForScanTimer.start(14,18);
+        waitForScanTimer.setSingleShot(true);
+        ruleStruct->waitingForWiFiScan = true;
         return;
     }
-    pendingRuleQueue.enqueue(ruleStruct); //still, enqueue this item so we don't have to check if empty here
-    qDebug() << "now checking " <<  pendingRuleQueue.dequeue()->name;
+    //pendingRuleQueue.enqueue(ruleStruct); //still, enqueue this item so we don't have to check if empty here
+    qDebug() << "now checking " << ruleStruct->name;
 
-    disconnect(&ruleStruct->waitForScanTimer, SIGNAL(timeout()),
-            this, SLOT(checkQueuedRules()));
+
 
     QVariant locationCond = false;
     if (ruleStruct->data.locationRule->enabled && locationDataSource) //no locationDataSource if user has disabled positioning
@@ -639,19 +720,31 @@ void Controller::checkStatus(Rule* ruleStruct)
     else
         wifiCond = true;
 
-    QVariant result = locationCond.toBool() && timeCond.toBool() && calendarCond.toBool() && dayOfWeekCond.toBool() && wifiCond.toBool();
-    didSomething(ruleStruct->name + "="+ result.toString() +"(loc:" + locationCond.toString() + " time:" + timeCond.toString() + " cal:" + calendarCond.toString() + " day:" + dayOfWeekCond.toString() + " wifi:"+ wifiCond.toString() +")") ;
-    qDebug() << ruleStruct->name << "=" << result  << "(loc:" << locationCond.toString() << " time:" << timeCond.toString() << " cal:" << calendarCond.toString() << " day:" << dayOfWeekCond.toString() << " wifi:" << wifiCond.toString() << ")";
+    QVariant chargingCond = false;
+    if (ruleStruct->data.chargingRule.enabled){
+        if (ruleStruct->data.chargingRule.active)
+            chargingCond = true;
+        else
+            chargingCond = false;
+        if(ruleStruct->data.chargingRule.inverseCond)
+            chargingCond = !chargingCond.toBool();
+    }
+    else
+        chargingCond = true;
+
+    QVariant result = locationCond.toBool() && timeCond.toBool() && calendarCond.toBool() && dayOfWeekCond.toBool() && wifiCond.toBool() && chargingCond.toBool();
+    didSomething(ruleStruct->name + "="+ result.toString() +"(loc:" + locationCond.toString() + " time:" + timeCond.toString() + " cal:" + calendarCond.toString() + " day:" + dayOfWeekCond.toString() + " wifi:"+ wifiCond.toString() + " charging:"+ chargingCond.toString() +")") ;
+    qDebug() << ruleStruct->name << "=" << result  << "(loc:" << locationCond.toString() << " time:" << timeCond.toString() << " cal:" << calendarCond.toString() << " day:" << dayOfWeekCond.toString() << " wifi:" << wifiCond.toString()  << " charging:" << chargingCond.toString() << ")";
     ruleStruct->active = result.toBool();
 
+    bool backOutSettings = false;
+    if(!settings->group().contains(ruleStruct->name)){
+        backOutSettings = true;
+        settings->beginGroup("rules");
+        settings->beginGroup(ruleStruct->name);
+    }
     if (result.toBool())
-    {
-        bool backOutSettings = false;
-        if(!settings->group().contains(ruleStruct->name)){
-            backOutSettings = true;
-            settings->beginGroup("rules");
-            settings->beginGroup(ruleStruct->name);
-        }
+    {//rule evaluated to true
         qDebug() << settings->value("Actions/Profile/enabled",999);
         if (settings->value("Actions/Profile/enabled",false).toBool() == true)
         {//set profile first to enable / disable sounds during other actions
@@ -683,10 +776,17 @@ void Controller::checkStatus(Rule* ruleStruct)
             qDebug() << "tried to set PSM on";
             didSomething("PSM on");
         }
-        if(backOutSettings){
-            settings->endGroup();
-            settings->endGroup();
+
+        if (settings->value("/Actions/RunCommand/enabled",false).toBool() == true) {
+            if (!ruleCommandAlreadyStarted.contains(ruleStruct->name) || //if this rule isn't in qmap
+                    !ruleCommandAlreadyStarted.value(ruleStruct->name)){ //or if this rule is false in qmap
+                    QProcess newProcess; //start the process
+                    newProcess.startDetached(settings->value("/Actions/RunCommand/TEXT","").toString());
+                    ruleCommandAlreadyStarted.insert(ruleStruct->name,true); //and update qmap to not run it again
+                    didSomething("Starting process " + settings->value("/Actions/RunCommand/TEXT","").toString());
+                }
         }
+
     }
     else//rule evaluated to false
     {
@@ -697,6 +797,12 @@ void Controller::checkStatus(Rule* ruleStruct)
             qDebug() << "tried to set PSM off";
             didSomething("PSM off");
         }
+        if (ruleCommandAlreadyStarted.contains(ruleStruct->name))
+            ruleCommandAlreadyStarted.insert(ruleStruct->name,false);//update qmap to run process next time rule is true
+    }
+    if(backOutSettings){
+        settings->endGroup();
+        settings->endGroup();
     }
 }
 
@@ -752,6 +858,7 @@ void DataLocation::areaExited(const QGeoPositionInfo &update) {
 
 Rule::Rule()
 {
+    waitingForWiFiScan = false;
 }
 
 Rule::~Rule()
@@ -792,6 +899,24 @@ void DataDayOfWeek::activated()
 void DataDayOfWeek::deactivated()
 {
     qDebug() << "DayOfWeek deactivated";
+    if (this->inverseCond == false)
+        this->active = false;
+    else
+        this->active = true;
+    Q_EMIT activeChanged((Rule*)this->parent());
+}
+
+void DataCharging::activated()
+{
+    if (this->inverseCond == false)
+        this->active = true;
+    else
+        this->active = false;
+    Q_EMIT activeChanged((Rule*)this->parent());
+}
+
+void DataCharging::deactivated()
+{
     if (this->inverseCond == false)
         this->active = false;
     else
