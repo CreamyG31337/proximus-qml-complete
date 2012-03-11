@@ -58,7 +58,7 @@ Page{
     Flickable{
     id: flickable
     anchors.fill: parent
-    contentHeight: 1225
+    contentHeight: 1235
     //contentHeight: childrenRect.height
         TextField{
             anchors.top: parent.top
@@ -83,7 +83,7 @@ Page{
         Rectangle{
             id: recActions
             color: "transparent"
-            height: 275
+            height: 280
             width: parent.width
             anchors.top: txtRuleName.bottom
             border.width: 2
